@@ -342,6 +342,35 @@ html.m .pad{display:flex}
 .pad-a{width:64px;height:64px;border-radius:50%;background:#e4002b;color:#fff;border:3px solid #000;font-family:var(--f-hud);font-size:16px;box-shadow:inset -5px -5px 0 #7a0018,inset 4px 4px 0 #ffffff44}
 .pad-a:active{transform:translateY(2px);box-shadow:inset -2px -2px 0 #7a0018}
 
+/* ---------- import dialog ---------- */
+.imp-drop{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;background:var(--field);color:var(--box-fg);border:3px dashed var(--gold);cursor:pointer;font:inherit}
+.imp-drop img{width:40px;height:40px;flex:none}
+.imp-drop b{display:block;font-family:var(--f-pixel);font-weight:400;font-size:15px;line-height:1.3;color:var(--gold)}
+.imp-drop small{display:block;font-size:12px;color:var(--box-dim);margin-top:4px}
+.imp-drop:hover,.imp-drop.over{background:var(--box-2);border-style:solid}
+.imp-drop:disabled{opacity:.5;cursor:progress}
+.imp-bar{height:12px;background:var(--field);border:2px solid var(--box-dim)}
+.imp-bar i{display:block;height:100%;width:3%;background:repeating-linear-gradient(90deg,var(--gold) 0 8px,var(--gold-dk) 8px 10px);transition:width .2s steps(4)}
+.imp-lead{margin:0}
+.imp-sec h4{font-family:var(--f-pixel);font-weight:400;font-size:13px;color:var(--gold);margin:0 0 8px}
+.imp-kv{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;padding:3px 0;border-bottom:1px dashed var(--box-2)}
+.imp-kv span{color:var(--box-dim);min-width:4.5em}
+.imp-kv b{font-weight:500;word-break:break-all}
+.imp-kv em{font-style:normal;font-size:11px;color:var(--box-dim)}
+.imp-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.imp-list label{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--box-2);border:2px solid var(--ink);cursor:pointer}
+.imp-list input{width:18px;height:18px;margin-top:3px;accent-color:var(--gold);flex:none}
+.imp-list img{width:24px;height:24px;flex:none}
+.imp-list li.off label{opacity:.45}
+.imp-t{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:14px;line-height:1.4}
+.imp-t em{font-style:normal;font-family:var(--f-pixel);font-size:11px;background:var(--ink);color:var(--gold);padding:2px 5px 1px}
+.imp-t b{font-weight:700}
+.imp-t span{color:var(--box-dim)}
+.imp-d{font-size:12px;color:var(--box-dim);margin-top:2px}
+.imp-chips{display:flex;flex-wrap:wrap;gap:6px}
+.imp-chip{font:inherit;font-size:12.5px;padding:3px 9px;background:var(--gold);color:var(--ink);border:2px solid var(--ink);cursor:pointer}
+.imp-chip[aria-pressed="false"]{background:transparent;color:var(--box-dim);border-color:var(--box-dim);text-decoration:line-through}
+
 /* ---------- phone build (html.m): thumb-first layout ---------- */
 html.m body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 html.m .worldmap{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--ink);border-top:4px solid var(--gold-dk);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible}
@@ -1244,7 +1273,6 @@ let capResolved = !IN_VIEWER;
 function updateAI() {
   if (aiCtl) return;
   $('#genAI').disabled = !sampleFn;
-  $('#importBtn').title = sampleFn ? '' : '需要在 claude.ai 中打开';
   if (sampleFn) setAI('', '');
   else if (!capResolved) setAI('', '正在连接 Claude…');
   else setAI('', IN_VIEWER ? '这个页面没有拿到使用 Claude 的权限。本地生成不受影响。' : 'Claude 精修和导入旧简历要在 claude.ai 里打开本页才能用。本地生成不受影响。');
@@ -1461,35 +1489,401 @@ function editItem(id) {
   }
   openModal(orig ? '编辑经历' : '新增经历', body, foot);
 }
-function importDialog() {
-  if (!sampleFn) {
-    openModal('导入旧简历', el('div', {}, el('p', { text: '这个功能要请 Claude 帮你拆分旧简历，需要在 claude.ai 里打开本页才能用。' }),
-      el('p', { class: 'hint', text: '本地版可以用「读取存档」导入之前导出的 .json，或者在地图上手动添加经历。' })), [el('button', { class: 'btn', text: '知道了', onclick: closeModal })]);
-    return;
+/* ---------- local resume parser (no AI): text → { basics, skills, items } ---------- */
+const CJK = '\\u3400-\\u9fff';
+function cleanResumeText(t) {
+  t = String(t || '').replace(/\r/g, '')
+    .replace(/[！-～]/g, c => '：；，（）'.includes(c) ? c : String.fromCharCode(c.charCodeAt(0) - 0xfee0)) // full-width ASCII → half-width
+    .replace(/[　 \t]/g, ' ').replace(/[‐‑‒–—―~～－]/g, '-').replace(/[．。](?=\d)/g, '.');
+  // OCR puts spaces between Chinese characters: "工 作 经 历" → "工作经历"
+  for (let i = 0; i < 2; i++) t = t.replace(new RegExp(`([${CJK}，。、：；）])[ ](?=[${CJK}，。、：；（])`, 'g'), '$1');
+  t = t.replace(/(\d)\s*([年月.\/])\s*(?=\d)/g, '$1$2').replace(/(\d)\s+月/g, '$1月');
+  // OCR noise: lone quote marks in field gaps, spaced colons
+  t = t.replace(/(^|[ ])[“”"‘’'`]+(?=\S)/gm, '$1').replace(/(\S)[“”"‘’'`]+(?=[ ]|$)/gm, '$1').replace(/[ ]+([:：])[ ]*/g, '$1');
+  return t.split('\n').map(s => s.replace(/[ ]{3,}/g, '   ').trim()).filter(s => s && !/^[-_=*·•|\s]+$/.test(s));
+}
+const YM = String.raw`(\d{4})\s*(?:[.\/\-年]\s*(\d{1,2})\s*月?)?`;
+const RANGE_RE = new RegExp(YM + String.raw`\s*(?:-+|至|到|to)\s*(?:${YM}|(至今|今|现在|目前|present|now|current))`, 'i');
+const ONE_DATE_RE = new RegExp(String.raw`(?<!\d)(19|20)\d{2}\s*(?:[.\/\-年]\s*\d{1,2}\s*月?)?(?!\d)`);
+const ym = (y, m) => y ? y + '-' + String(Math.min(12, Math.max(1, +(m || 1)))).padStart(2, '0') : '';
+const SECTIONS = [
+  ['edu', /^(教育背景|教育经历|教育信息|学历背景|学习经历|教育|education)/i],
+  ['intern', /^(实习经历|实习经验|实习|internships?)/i],
+  ['work', /^(工作经历|工作经验|职业经历|任职经历|工作|work experience|professional experience|employment|experience)/i],
+  ['project', /^(项目经历|项目经验|项目|作品集?|代表作品|projects?|portfolio)/i],
+  ['other', /^(校园经历|在校经历|社团经历|学生工作|校内经历|社会实践|志愿者?经历|志愿服务|活动经历|campus|activities|volunteer)/i],
+  ['award', /^(荣誉奖项|获奖经历|获奖情况|获奖|荣誉|奖项|奖励|awards?|honou?rs)/i],
+  ['cert', /^(证书|资格证书|技能证书|职业资格|certificat)/i],
+  ['skills', /^(专业技能|技能特长|个人技能|技能清单|技能|语言能力|软件技能|工具|skills?)/i],
+  ['summary', /^(自我评价|个人评价|个人简介|个人总结|个人优势|自我介绍|关于我|个人陈述|summary|profile|about me)/i],
+  ['basics', /^(基本信息|个人信息|联系方式|个人资料|contact)/i],
+  ['skip', /^(求职意向|期望职位|兴趣爱好|爱好)$/]
+];
+function sectionOf(line) {
+  const s = line.replace(/^[\s#【\[<《■●◆▶►▌|·•\d.、]+/, '').replace(/[】\]>》：:|]+\s*$/, '').trim();
+  if (!s || s.length > 30) return null;
+  const head = s.replace(/[A-Za-z &/']+$/, '').trim() || s; // "工作经历 WORK EXPERIENCE"
+  if (head.length > 10 && !/^[\x00-\x7f]+$/.test(head)) return null;
+  if (/^[\x00-\x7f]+$/.test(head) && head.split(/\s+/).length > 3) return null;
+  for (const [k, re] of SECTIONS) if (re.test(head)) return k;
+  return null;
+}
+const BULLET_RE = /^\s*(?:[•·●○◆◇▪■□►▶✓✔√\-*]|\d{1,2}[.、)）](?!\d)|[（(]\d{1,2}[)）]|[①-⑳])\s*/;
+const ORG_RE = /(大学|学院|学校|中学|公司|集团|科技|有限|工作室|银行|医院|中心|研究院|研究所|事务所|协会|电视台|报社|出版社|政府|局|委员会|基金|实验室|俱乐部|社团|学生会|University|College|School|Inc|Ltd|LLC|Co\.|Corp|Group|Studio|Lab|Institute)/i;
+const DEG_RE = /(博士|硕士|研究生|本科|学士|大专|专科|高中|MBA|EMBA|PhD|Ph\.D|Master|Bachelor|B\.?A|B\.?S|M\.?S|M\.?A)/i;
+const ROLE_RE = /(实习生|实习|经理|主管|总监|专员|助理|工程师|设计师|运营|策划|编辑|分析师|顾问|负责人|主理人|组长|队长|会长|部长|主席|成员|干事|开发|研究员|老师|教师|销售|代表|leader|manager|engineer|designer|intern|analyst|director|assistant|specialist|developer|editor)/i;
+
+function parseResumeText(text, kw = () => []) {
+  const lines = cleanResumeText(text);
+  const all = lines.join('\n');
+  const basics = { name: '', title: '', phone: '', email: '', city: '', link: '', summary: '' };
+  const em = all.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/); if (em) basics.email = em[0];
+  const ph = all.replace(/(\d)[ -](?=\d)/g, '$1').match(/(?:\+?86)?(1[3-9]\d{9})(?!\d)/); if (ph) basics.phone = ph[1].replace(/(\d{3})(\d{4})(\d{4})/, '$1 $2 $3');
+  const lk = all.match(/(?:https?:\/\/|www\.)[^\s，,；;）)]+|(?:github\.com|behance\.net|zcool\.com\.cn|linkedin\.com)\/[^\s，,；;）)]+/i); if (lk) basics.link = lk[0];
+  const kv = (re) => { for (const l of lines) { const m = l.match(re); if (m) return m[1].trim().split(/\s{2,}|[|｜]/)[0].trim(); } return ''; };
+  basics.name = kv(/(?:姓\s*名|name)\s*[:：]\s*([^\s|｜:：]{2,20})/i);
+  basics.title = kv(/(?:求职意向|意向岗位|期望职位|应聘职位|目标岗位|求职岗位|意向职位|求职目标)\s*[:：]?\s*(.{2,30})/).replace(/\s*(电话|手机|邮箱|e-?mail|微信|年龄|性别|城市|现居)[\s\S]*$/i, '');
+  basics.city = kv(/(?:现居地?|所在城市|居住地|现居住地|期望城市|意向城市|工作地点|城市|地址)\s*[:：]\s*([^\s|｜]{2,20})/);
+  if (!basics.name) {
+    for (const l of lines.slice(0, 6)) {
+      const c = l.split(/\s+|[|｜]/)[0];
+      if (/^[一-龥]{2,4}$/.test(c) && !/简历|个人|求职|信息|电话|邮箱/.test(c) && !sectionOf(c)) { basics.name = c; break; }
+      if (/^[A-Z][a-z]+(?: [A-Z][a-z]+){1,2}$/.test(l)) { basics.name = l; break; }
+    }
   }
-  const ta = el('textarea', { id: 'm_import', rows: '12', placeholder: '把旧简历全文粘贴进来（从 Word / PDF 里复制文字即可）' });
+
+  // split lines into sections
+  const secs = []; let cur = { k: 'top', lines: [] }; secs.push(cur);
+  for (const l of lines) {
+    const k = sectionOf(l);
+    if (k) { cur = { k, lines: [] }; secs.push(cur); const rest = l.replace(/^.*?[：:]/, ''); if (rest !== l && rest.trim().length > 1) cur.lines.push(rest.trim()); continue; }
+    cur.lines.push(l);
+  }
+  const hasSections = secs.some(s => /^(edu|work|intern|project|other|award)$/.test(s.k));
+
+  const items = [], skills = [], seenSk = new Set();
+  const addSkill = (name, level = 2) => {
+    name = String(name).replace(/^[\s\-•·:：]+|[\s。.；;]+$/g, '').trim();
+    if (!name || name.length > 24 || /^\d+$/.test(name) || seenSk.has(name.toLowerCase())) return;
+    seenSk.add(name.toLowerCase()); skills.push({ name, level });
+  };
+  for (const s of secs) {
+    if (s.k === 'summary') basics.summary = basics.summary || s.lines.map(l => l.replace(BULLET_RE, '')).join('').slice(0, 400);
+    else if (s.k === 'skills' || s.k === 'cert') {
+      for (const l of s.lines) {
+        const lv = /精通|expert|fluent|母语|native/i.test(l) ? 3 : /了解|基础|basic|familiar/i.test(l) ? 1 : 2;
+        const body = l.replace(BULLET_RE, '').replace(/^[^：:]{1,12}[：:]/, '');
+        const parts = body.split(/[,，、;；|｜\/]+|\s{2,}/).map(x => x.replace(/^(熟练|精通|熟悉|掌握|了解|能够|会)(使用|运用|掌握)?/, '').replace(/(等|等软件|等工具)$/, '').trim());
+        if (parts.length === 1 && parts[0].length > 14) { kw(l).forEach(k => addSkill(k, lv)); continue; }
+        parts.forEach(p => addSkill(p, s.k === 'cert' ? 2 : lv));
+      }
+    } else if (/^(edu|work|intern|project|other|award)$/.test(s.k) || (s.k === 'top' && !hasSections)) items.push(...parseEntries(s.lines, s.k === 'top' ? '' : s.k, kw));
+  }
+  // no explicit skills section: fall back to keyword hits across the resume
+  if (!skills.length) kw(all).slice(0, 12).forEach(k => addSkill(k, 2));
+  if (basics.title && /^\d|[：:]/.test(basics.title)) basics.title = '';
+  const tidy = x => String(x || '').replace(new RegExp('([' + CJK + '])\\s+(?=[' + CJK + '])', 'g'), '$1').replace(/\s{2,}/g, ' ').trim();
+  const out = items.filter(it => it.org || it.role).map(it => ({ ...it, org: tidy(it.org), role: tidy(it.role), bullets: it.bullets.map(tidy).filter(Boolean) }));
+  return { basics, skills, items: out };
+}
+
+function parseEntries(lines, type, kw) {
+  const isHead = l => RANGE_RE.test(l) || (type === 'award' && ONE_DATE_RE.test(l));
+  const anchors = [];
+  lines.forEach((l, i) => { if (isHead(l) && !BULLET_RE.test(l.replace(/^\d{4}/, 'x'))) anchors.push(i); });
+  // awards are usually one per line, often without dates
+  if (type === 'award') {
+    const out = [];
+    for (const l of lines) {
+      const last = out[out.length - 1];
+      if (last && BULLET_RE.test(l) && !ONE_DATE_RE.test(l)) { last.bullets.push(l.replace(BULLET_RE, '')); continue; }
+      const e = entryFromAward(l.replace(BULLET_RE, ''), kw); if (e) out.push(e);
+    }
+    return out;
+  }
+  if (!anchors.length) return [];
+  const used = new Set(), heads = [];
+  for (const i of anchors) {
+    const l = lines[i], m = l.match(RANGE_RE) || l.match(ONE_DATE_RE);
+    let start = '', end = '';
+    if (m && m[0].match(RANGE_RE)) { start = ym(m[1], m[2]); end = m[5] ? '' : ym(m[3], m[4]); }
+    else if (m) { const d = m[0].match(new RegExp(YM)); start = end = ym(d[1], d[2]); }
+    let txt = l.replace(m ? m[0] : '', '   ').replace(/^[\s|｜,，·]+|[\s|｜,，·]+$/g, '');
+    let from = i, to = i;
+    const prev = lines[i - 1], next = lines[i + 1];
+    const plain = x => x != null && !isHead(x) && !BULLET_RE.test(x) && x.length <= 40 && !/[。；;]$/.test(x);
+    if (!txt && plain(prev) && !used.has(i - 1)) { txt = prev; from = i - 1; }
+    else if (!txt && plain(next)) { txt = next; to = i + 1; }
+    let toks = splitHead(txt);
+    if (toks.length < 2 && plain(lines[to + 1] ?? null) && lines[to + 1].length <= 24 && !anchors.includes(to + 1) && (ROLE_RE.test(lines[to + 1]) || DEG_RE.test(lines[to + 1]))) { toks.push(...splitHead(lines[to + 1])); to++; }
+    else if (toks.length < 2 && plain(next) && to === i && next.length <= 24 && !anchors.includes(i + 1) && (ROLE_RE.test(next) || DEG_RE.test(next))) { toks.push(...splitHead(next)); to = i + 1; }
+    for (let k = from; k <= to; k++) used.add(k);
+    heads.push({ from, to, toks, start, end });
+  }
+  return heads.map((h, n) => {
+    const stop = n + 1 < heads.length ? heads[n + 1].from : lines.length;
+    const bullets = [];
+    for (let k = h.to + 1; k < stop; k++) {
+      const l = lines[k], b = BULLET_RE.test(l);
+      const t = l.replace(BULLET_RE, '').trim(); if (!t) continue;
+      const last = bullets[bullets.length - 1];
+      if (!b && last && !/[。；;！!.]$/.test(last) && t.length < 60 && !/^[A-Z一-龥]{1,8}[：:]/.test(t)) bullets[bullets.length - 1] = last + (/[A-Za-z0-9]$/.test(last) && /^[A-Za-z0-9]/.test(t) ? ' ' : '') + t;
+      else bullets.push(t);
+    }
+    return entryFromToks(h.toks, type, h.start, h.end, bullets.map(x => x.replace(/[；;]$/, '')), kw);
+  });
+}
+function splitHead(txt) {
+  txt = String(txt || '').trim(); if (!txt) return [];
+  let t = /[|｜·•]/.test(txt) ? txt.split(/\s*[|｜·•]\s*/) : /\s{2,}/.test(txt) ? txt.split(/\s{2,}/) : /[一-龥]/.test(txt) ? txt.split(/\s+/) : [txt];
+  // "示例大学数字媒体艺术本科" stays as one token; peel a trailing degree off it
+  t = t.map(x => x.trim()).filter(Boolean);
+  if (t.length === 1) { const m = t[0].match(/^(.{2,}?(?:大学|学院|学校|公司|集团|工作室|中心))(.+)$/); if (m) t = [m[1], m[2]]; }
+  return t;
+}
+function entryFromToks(toks, type, start, end, bullets, kw) {
+  toks = toks.filter(x => !/^(全职|兼职|远程|线上|\d+个?月)$/.test(x));
+  let oi = toks.findIndex(x => ORG_RE.test(x)); if (oi < 0) oi = 0;
+  const org = toks[oi] || '', rest = toks.filter((_, i) => i !== oi);
+  let role = rest.join(' · ');
+  if (!type) type = /大学|学院|学校|University|College|School/i.test(org) || DEG_RE.test(role) ? 'edu' : /实习|intern/i.test(role) ? 'intern' : /奖|赛|award/i.test(org + role) ? 'award' : /项目|project/i.test(org + role) ? 'project' : 'work';
+  if (type === 'work' && /实习|intern/i.test(role)) type = 'intern';
+  if (type === 'edu' && !/·/.test(role)) { const d = role.match(new RegExp('^(.+?)\\s*(' + DEG_RE.source + ')$', 'i')); if (d) role = d[1] + ' · ' + d[2]; }
+  if (type === 'intern' && role && !/实习|intern/i.test(role) && !rest.length) role += '实习生';
+  return { type, org, role, start, end, bullets, tags: kw([org, role, ...bullets].join(' ')).slice(0, 6) };
+}
+function entryFromAward(l, kw) {
+  if (!l || l.length < 3) return null;
+  const m = l.match(RANGE_RE) || l.match(ONE_DATE_RE);
+  let start = '';
+  if (m) { const d = m[0].match(new RegExp(YM)); start = ym(d[1], d[2]); l = l.replace(m[0], ' ').trim(); }
+  const lv = l.match(/(特等奖|[一二三]等奖|金奖|银奖|铜奖|优秀奖|一等|二等|三等|第[一二三四五六七八九十\d]+名|冠军|亚军|季军|入围|提名|优秀[一-龥]{1,6}|奖学金|Winner|Finalist|\d+(st|nd|rd|th) Place)/i);
+  let org = l, role = '';
+  if (lv && lv.index > 0) { org = l.slice(0, lv.index).replace(/[\s·|｜,，-]+$/, ''); role = l.slice(lv.index).trim(); }
+  else { const t = l.split(/\s{2,}|\s*[|｜·]\s*/); if (t.length > 1) { org = t[0]; role = t.slice(1).join(' '); } }
+  const c = org.match(/^(.+?(?:大赛|比赛|竞赛|挑战赛|锦标赛|杯|评选|计划))\s*(.+)$/); if (c) { org = c[1]; role = (c[2] + ' ' + role).trim(); }
+  return { type: 'award', org, role, start, end: start, bullets: [], tags: kw(l).slice(0, 4) };
+}
+
+/* ---------- import: photo / screenshot / PDF / Word / text → text (all in the browser) ---------- */
+const LIBS = {
+  ocr: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
+  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  pdfWorker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  docx: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'
+};
+const libLoads = {};
+function loadLib(url) {
+  return libLoads[url] || (libLoads[url] = new Promise((ok, bad) => {
+    const s = el('script', { src: url, crossorigin: 'anonymous' });
+    s.onload = ok; s.onerror = () => { delete libLoads[url]; bad({ code: 'offline' }); };
+    document.head.append(s);
+  }));
+}
+let ocrWorker = null, ocrProg = () => {};
+async function getOcr() {
+  if (ocrWorker) return ocrWorker;
+  await loadLib(LIBS.ocr);
+  ocrWorker = await window.Tesseract.createWorker(['chi_sim', 'eng'], 1, { logger: m => ocrProg(m) });
+  // keep wide gaps as runs of spaces: they separate 学校 / 专业 / 学历 on one line
+  await ocrWorker.setParameters({ preserve_interword_spaces: '1' });
+  return ocrWorker;
+}
+// Phones shoot 4000px photos and screenshots can be tiny: normalise to ~2200px, greyscale, stretch contrast.
+async function prepImage(src) {
+  const im = src instanceof HTMLCanvasElement ? src : await new Promise((ok, bad) => { const u = URL.createObjectURL(src), i = new Image(); i.onload = () => { URL.revokeObjectURL(u); ok(i); }; i.onerror = () => bad({ code: 'bad_image' }); i.src = u; });
+  const w0 = im.naturalWidth || im.width, h0 = im.naturalHeight || im.height;
+  const k = Math.min(3, 2200 / Math.max(w0, h0));
+  const c = document.createElement('canvas'); c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, c.width, c.height);
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+  let lo = 255, hi = 0;
+  for (let i = 0; i < p.length; i += 16) { const v = p[i] * .3 + p[i + 1] * .59 + p[i + 2] * .11; if (v < lo) lo = v; if (v > hi) hi = v; }
+  const span = Math.max(40, hi - lo);
+  for (let i = 0; i < p.length; i += 4) { const v = Math.max(0, Math.min(255, ((p[i] * .3 + p[i + 1] * .59 + p[i + 2] * .11) - lo) * 255 / span)); p[i] = p[i + 1] = p[i + 2] = v; }
+  g.putImageData(d, 0, 0);
+  return c;
+}
+// Rebuild lines from word boxes so a wide gap becomes a field break ("学校   专业   学历"), not a merge.
+function ocrLines(data) {
+  const lines = data.lines || [];
+  if (!lines.length) return data.text || '';
+  return lines.map(l => {
+    const ws = (l.words || []).filter(w => w.text && !/^[“”"‘’'`,.]+$/.test(w.text));
+    if (!ws.length) return l.text || '';
+    const h = Math.max(8, l.bbox.y1 - l.bbox.y0);
+    let out = '', end = null;
+    for (const w of ws) { if (end != null) { const gap = w.bbox.x0 - end; out += gap > h * 0.55 ? '   ' : gap > h * 0.2 ? ' ' : ''; } out += w.text; end = w.bbox.x1; }
+    return out;
+  }).join('\n');
+}
+async function ocrImage(src, say) {
+  say('准备认字工具（第一次要下载约 9 MB，之后就快了）…', 0);
+  ocrProg = m => {
+    if (m.status === 'recognizing text') say('正在认字…', m.progress);
+    else if (/loading|initializ/.test(m.status)) say('准备认字工具（第一次要下载约 9 MB，之后就快了）…', m.progress);
+  };
+  const w = await getOcr();
+  const { data } = await w.recognize(await prepImage(src));
+  return ocrLines(data);
+}
+async function pdfText(file, say) {
+  say('读取 PDF…', 0);
+  await loadLib(LIBS.pdf);
+  const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = LIBS.pdfWorker;
+  const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages = [];
+  for (let n = 1; n <= Math.min(doc.numPages, 6); n++) {
+    const pg = await doc.getPage(n), tc = await pg.getTextContent();
+    // rebuild lines from positioned runs: same baseline → same line, wide gaps → field separator
+    const rows = [];
+    for (const it of tc.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const x = it.transform[4], y = it.transform[5], h = Math.abs(it.transform[3]) || 10;
+      let r = rows.find(r => Math.abs(r.y - y) < h * 0.5);
+      if (!r) rows.push(r = { y, h, runs: [] });
+      r.runs.push({ x, w: it.width, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    pages.push(rows.map(r => { r.runs.sort((a, b) => a.x - b.x); let out = '', end = null; for (const u of r.runs) { if (end != null) { const gap = u.x - end; out += gap > r.h * 1.5 ? '   ' : gap > r.h * 0.2 ? ' ' : ''; } out += u.s; end = u.x + u.w; } return out; }).join('\n'));
+    say('读取 PDF…', n / doc.numPages);
+  }
+  let text = pages.join('\n');
+  if (text.replace(/\s/g, '').length > 40) return text;
+  // scanned PDF: render each page and OCR it
+  const parts = [];
+  for (let n = 1; n <= Math.min(doc.numPages, 4); n++) {
+    const pg = await doc.getPage(n), vp = pg.getViewport({ scale: 2.2 });
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+    await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    parts.push(await ocrImage(c, (t, p) => say(`扫描版 PDF 第 ${n} 页：${t}`, p)));
+  }
+  return parts.join('\n');
+}
+async function docxText(file, say) {
+  say('读取 Word…', 0.3);
+  await loadLib(LIBS.docx);
+  const r = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+  return r.value || '';
+}
+async function fileToText(file, say) {
+  const n = (file.name || '').toLowerCase(), t = file.type || '';
+  if (t.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|heic)$/.test(n)) {
+    if (/heic/.test(t + n)) throw { code: 'heic' };
+    return ocrImage(file, say);
+  }
+  if (t === 'application/pdf' || n.endsWith('.pdf')) return pdfText(file, say);
+  if (n.endsWith('.docx')) return docxText(file, say);
+  if (n.endsWith('.doc')) throw { code: 'doc' };
+  if (t.startsWith('text/') || /\.(txt|md|markdown)$/.test(n)) return file.text();
+  throw { code: 'type' };
+}
+const IMPORT_ERR = {
+  offline: '认字工具下载失败：要联网才能识别图片 / PDF / Word。也可以直接把文字粘贴进来。',
+  heic: 'iPhone 的 HEIC 照片读不了：截个屏再选截图，或者在相册里「拷贝」后粘贴文字。',
+  doc: '老的 .doc 读不了：在 Word 里「另存为 .docx」或 PDF 再选。',
+  type: '这种文件读不了，支持：图片、PDF、Word (.docx)、txt。',
+  bad_image: '这张图片打不开，换一张试试。'
+};
+const kwHits = t => { const out = []; for (const d of DICT) if ((d.k === 'tool' || d.k === 'skill' || d.k === 'lang') && hasAny(t, d.a)) out.push(d.c); return out; };
+
+function importDialog() {
+  const ta = el('textarea', { id: 'm_import', rows: MOBILE ? '8' : '10', placeholder: '识别出来的文字会出现在这里，也可以直接粘贴旧简历全文' });
+  const fileIn = el('input', { type: 'file', accept: 'image/*,.pdf,.docx,.doc,.txt,.md,application/pdf', multiple: true, hidden: true });
+  const bar = el('div', { class: 'imp-bar', hidden: true }, el('i'));
   const status = el('div', { class: 'ai-state' });
-  let ctl = null;
-  const go_ = el('button', { class: 'btn btn-green', text: '让 Claude 拆成经历', onclick: async () => {
-    const txt = ta.value.trim();
-    if (txt.length < 30) { $('#mErr').textContent = '内容太短了，粘贴完整一点的简历文本。'; return; }
-    ctl = new AbortController(); go_.disabled = true; status.className = 'ai-state run'; status.innerHTML = ''; status.append(img('hero1'), el('span', { text: '正在拆分，通常 20–40 秒…' }));
+  const say = (t, p) => {
+    status.className = 'ai-state run'; status.innerHTML = ''; status.append(img('hero1'), el('span', { text: t }));
+    bar.hidden = p == null; if (p != null) bar.firstChild.style.width = Math.round(Math.max(0.03, Math.min(1, p)) * 100) + '%';
+  };
+  const idle = (t = '') => { status.className = 'ai-state'; status.textContent = t; bar.hidden = true; };
+  let busy = false, ctl = null;
+  const setBusy = b => { busy = b; pick.disabled = b; local.disabled = b; if (ai) ai.disabled = b; };
+  const pick = el('button', { class: 'imp-drop', type: 'button', onclick: () => fileIn.click() },
+    img('qblock'), el('span', {}, el('b', { text: MOBILE ? '拍照 / 选截图、PDF、Word' : '选简历文件：截图、照片、PDF、Word' }), el('small', { text: '可以一次选多张，按页顺序拼起来' })));
+  async function readFiles(files) {
+    files = [...files]; if (!files.length || busy) return;
+    setBusy(true); $('#mErr').textContent = '';
+    const texts = [];
     try {
-      const o = await sampleFn.json(`把下面这份旧简历整理成结构化 JSON。只提取原文里有的信息，不要编造或补充。时间统一写成 YYYY-MM，"至今"写空字符串。
+      for (let i = 0; i < files.length; i++) {
+        const pre = files.length > 1 ? `第 ${i + 1}/${files.length} 个：` : '';
+        texts.push(await fileToText(files[i], (t, p) => say(pre + t, p)));
+      }
+      const got = texts.join('\n\n').trim();
+      if (got.replace(/\s/g, '').length < 20) { idle(); $('#mErr').textContent = '没认出多少字：换一张更清楚、正对着拍的图，或者直接粘贴文字。'; }
+      else { ta.value = (ta.value.trim() ? ta.value.trim() + '\n\n' : '') + cleanResumeText(got).join('\n'); idle('认出来了。错字可以先在下面改一改，再点「拆成经历」。'); sfx('coin'); }
+    } catch (e) { idle(); $('#mErr').textContent = IMPORT_ERR[e && e.code] || '没能读取这个文件，换一个试试，或者直接粘贴文字。'; sfx('oops'); }
+    setBusy(false); fileIn.value = '';
+  }
+  fileIn.addEventListener('change', () => readFiles(fileIn.files));
+  pick.addEventListener('dragover', e => { e.preventDefault(); pick.classList.add('over'); });
+  pick.addEventListener('dragleave', () => pick.classList.remove('over'));
+  pick.addEventListener('drop', e => { e.preventDefault(); pick.classList.remove('over'); readFiles(e.dataTransfer.files); });
+  ta.addEventListener('paste', e => { const f = [...(e.clipboardData && e.clipboardData.files || [])]; if (f.length) { e.preventDefault(); readFiles(f); } });
+
+  const need = () => { const t = ta.value.trim(); if (t.length < 30) { $('#mErr').textContent = '先选一份简历文件，或者把文字粘贴进来。'; return null; } return t; };
+  const local = el('button', { class: sampleFn ? 'btn btn-box' : 'btn btn-green', text: sampleFn ? '本地快速拆' : '拆成经历', onclick: () => {
+    const t = need(); if (!t) return;
+    const o = parseResumeText(t, kwHits);
+    if (!o.items.length && !o.skills.length && !Object.values(o.basics).some(Boolean)) { $('#mErr').textContent = '没找到能拆的内容。检查一下文字里有没有「2020.09 - 2023.06」这样的时间。'; return; }
+    importPreview(o, t);
+  } });
+  const ai = sampleFn ? el('button', { class: 'btn btn-green', text: '让 Claude 拆（更准）', onclick: async () => {
+    const t = need(); if (!t) return;
+    ctl = new AbortController(); setBusy(true); say('Claude 正在拆分，通常 20–40 秒…');
+    try {
+      const o = await sampleFn.json(`把下面这份旧简历整理成结构化 JSON。只提取原文里有的信息，不要编造或补充。时间统一写成 YYYY-MM，"至今"写空字符串。文字可能来自图片识别，有错字时按上下文纠正。
 只回复 JSON：{"basics":{"name":"","title":"求职意向","phone":"","email":"","city":"","link":"","summary":"个人简介"},"skills":[{"name":"技能","level":1到3}],"items":[{"type":"edu|work|intern|project|award|other","org":"机构","role":"职位或专业","start":"YYYY-MM","end":"YYYY-MM 或空","bullets":["要点"],"tags":["技能标签"]}]}
 
 旧简历：
-${txt.slice(0, 20000)}`, { signal: ctl.signal, cache: false });
-      const n = mergeImport(o);
-      closeModal(); renderAll(); sfx('clear'); toast(`导入了 ${n} 段经历，已经插到地图上`);
+${t.slice(0, 20000)}`, { signal: ctl.signal, cache: false });
+      setBusy(false); idle(); importPreview(o, t);
     } catch (e) {
-      go_.disabled = false; status.className = 'ai-state'; status.textContent = '';
-      $('#mErr').textContent = e && e.code === 'cancelled' ? '' : e && e.code === 'invalid_json' ? 'Claude 返回的格式不对，再试一次。' : e && e.code === 'rate_limited' ? '调用太频繁了，过一会儿再试。' : '没能导入，稍后再试。';
+      setBusy(false); idle();
+      $('#mErr').textContent = e && e.code === 'cancelled' ? '' : e && e.code === 'invalid_json' ? 'Claude 返回的格式不对，再试一次，或者用「本地快速拆」。' : e && e.code === 'rate_limited' ? '调用太频繁了，过一会儿再试。' : '没能拆分，可以先用「本地快速拆」。';
     }
-  } });
-  openModal('导入旧简历', el('div', { class: 'form-stack' }, el('label', { class: 'fld' }, el('span', { text: '旧简历文本' }), ta), status,
-    el('p', { class: 'hint', text: '导入的经历会追加到地图上，不会覆盖现有内容；角色卡只补空着的格子。' })),
-    [go_, el('button', { class: 'btn btn-box', text: '取消', onclick: () => { ctl && ctl.abort(); closeModal(); } })]);
+  } }) : null;
+  openModal('导入旧简历', el('div', { class: 'form-stack' }, pick, fileIn, bar, status,
+    el('label', { class: 'fld' }, el('span', { text: '简历文字' }), ta),
+    el('p', { class: 'hint', text: '全程在你的浏览器里识别，文件不会上传。拆好后先给你确认，再放进地图；不会覆盖已有的经历。' })),
+    [ai, local, el('button', { class: 'btn btn-box', text: '取消', onclick: () => { ctl && ctl.abort(); closeModal(); } })].filter(Boolean));
+  importDialog.text = ta;
+  if (TOUCH && document.activeElement === ta) ta.blur(); // don't pop the keyboard over the upload button
+}
+// Show what was found; the player unticks anything wrong before it lands on the map.
+function importPreview(o, srcText) {
+  if (!o || typeof o !== 'object') { $('#mErr').textContent = '格式不对，再试一次。'; return; }
+  const items = (Array.isArray(o.items) ? o.items : []).filter(it => it && (it.org || it.role));
+  const skills = (Array.isArray(o.skills) ? o.skills : []).map(s => typeof s === 'string' ? { name: s, level: 2 } : s).filter(s => s && s.name);
+  const b = o.basics || {};
+  const keep = items.map(() => true), keepSk = skills.map(() => true);
+  const bLabels = { name: '姓名', title: '求职意向', phone: '电话', email: '邮箱', city: '城市', link: '链接', summary: '简介' };
+  const bRows = BASIC_KEYS.filter(k => typeof b[k] === 'string' && b[k].trim()).map(k => el('div', { class: 'imp-kv' }, el('span', { text: bLabels[k] }), el('b', { text: b[k].length > 60 ? b[k].slice(0, 60) + '…' : b[k] }),
+    state.profile.basics[k] && state.profile.basics[k] !== sampleProfile().basics[k] ? el('em', { text: '已有，保留原来的' }) : null));
+  const list = el('ul', { class: 'imp-list' }, items.map((it, i) => {
+    const T = TYPES[it.type] || TYPES.other;
+    const cb = el('input', { type: 'checkbox', checked: true, onchange: e => { keep[i] = e.target.checked; li.classList.toggle('off', !e.target.checked); count(); } });
+    const dates = it.start ? fmtRange({ type: it.type, start: normYM(it.start), end: it.end ? normYM(it.end) : '' }) : '时间没认出来';
+    const li = el('li', {}, el('label', {}, cb, img(T.spr),
+      el('div', {}, el('div', { class: 'imp-t' }, el('em', { text: T.label }), el('b', { text: it.org || '（未写机构）' }), it.role ? el('span', { text: it.role }) : null),
+        el('div', { class: 'imp-d', text: dates + ' · ' + (strArr(it.bullets).length ? strArr(it.bullets).length + ' 条要点' : '没有要点') }))));
+    return li;
+  }));
+  const chips = el('div', { class: 'imp-chips' }, skills.map((s, i) => el('button', { type: 'button', class: 'imp-chip', 'aria-pressed': 'true', text: s.name, onclick: e => { keepSk[i] = !keepSk[i]; e.target.setAttribute('aria-pressed', String(keepSk[i])); count(); } })));
+  const go_ = el('button', { class: 'btn btn-green' });
+  const count = () => { const n = keep.filter(Boolean).length; go_.textContent = n ? `放进地图（${n} 段）` : '只导入资料和技能'; };
+  go_.addEventListener('click', () => {
+    const n = mergeImport({ basics: b, skills: skills.filter((_, i) => keepSk[i]), items: items.filter((_, i) => keep[i]) });
+    closeModal(); renderAll(); showWorld(1); sfx('clear'); toast(n ? `放进了 ${n} 段经历，点方块可以继续改` : '资料和技能已导入');
+  });
+  count();
+  const back = el('button', { class: 'btn btn-box', text: '返回改文字', onclick: () => { importDialog(); importDialog.text.value = srcText; } });
+  openModal('确认导入', el('div', { class: 'form-stack' },
+    el('p', { class: 'hint imp-lead', text: items.length ? `找到 ${items.length} 段经历。不对的取消勾选，放进地图后还能点方块细改。` : '没找到成段的经历，可以返回检查文字里的时间格式。' }),
+    bRows.length ? el('div', { class: 'imp-sec' }, el('h4', { text: '角色卡' }), ...bRows) : null,
+    items.length ? el('div', { class: 'imp-sec' }, el('h4', { text: '经历' }), list) : null,
+    skills.length ? el('div', { class: 'imp-sec' }, el('h4', { text: '技能（点一下取消）' }), chips) : null), [go_, back]);
 }
 function mergeImport(o) {
   if (!o || typeof o !== 'object') throw { code: 'invalid_json' };
