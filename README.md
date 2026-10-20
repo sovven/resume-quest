@@ -2,10 +2,15 @@
 
 贴一份招聘 JD，生成这个岗位的专属简历。8-bit 横版闯关风格。
 
+## 在线玩
+
+**https://sovven.github.io/resume-quest/** ：手机、电脑任意浏览器都能打开，不用登录 Claude。手机会自动进手机版，可以「添加到主屏幕」当 App 用。档案只存在你自己设备的浏览器里，不会上传。
+
 ## 怎么打开
 
 | 版本 | 电脑 | 手机 |
 |---|---|---|
+| 网页（推荐） | https://sovven.github.io/resume-quest/ | 同一个链接，自动切手机版 |
 | 本地离线 | `dist/简历大冒险.html` | `dist/简历大冒险-手机版.html` |
 | 在线（带 Claude） | claude.ai Artifact 链接 | claude.ai Artifact 链接（手机版） |
 
@@ -26,7 +31,8 @@
 ```
 resume-quest/
 ├─ src/index.html          源码（改这里）
-├─ build.mjs               node build.mjs → 生成 dist/
+├─ build.mjs               node build.mjs → 生成 dist/ 和 site/
+├─ site/                   GitHub Pages 网页（推到 main 自动发布）
 ├─ dist/简历大冒险.html            电脑版离线单文件（字体已内嵌）
 ├─ dist/简历大冒险-手机版.html     手机版离线单文件
 ├─ dist/artifact*.html            发布到 claude.ai 用的版本（电脑 / 手机）
