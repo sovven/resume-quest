@@ -1,0 +1,1835 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!--HEAD-->
+<title>简历大冒险</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Press+Start+2P&display=swap">
+<style>
+@font-face{font-family:"Fusion Pixel";src:url("../assets/fonts/fusion-pixel-zh_hans.woff2") format("woff2");font-display:swap}
+
+/* Layout: an 8-bit overworld. HUD is painted straight on the sky, a world-map strip picks the level,
+   the active level fills the page. Panels are RPG text boxes; only the resume paper is "real world". */
+:root{
+  --sky:#5c94fc; --sky-lo:#7aa8ff; --ink:#14101e;
+  --box:#1d1b3a; --box-2:#2a2752; --box-fg:#fcfcfc; --box-dim:#b4b0e4; --field:#0f0e26;
+  --gold:#f8b800; --gold-dk:#ac7c00; --gold-hi:#fce0a8;
+  --brick:#c84c0c; --brick-dk:#5c1c00;
+  --pipe:#00a800; --pipe-dk:#005800; --pipe-hi:#b8f818;
+  --red:#e4002b; --grey:#6c6a8c; --plaque:#fce0a8; --plaque-ink:#14101e;
+  --hud:#fcfcfc; --deco:1;
+  --tile:var(--tile-l);
+  --f-pixel:"Fusion Pixel","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-hud:"Press Start 2P","Fusion Pixel",ui-monospace,monospace;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --g:clamp(16px,3vw,40px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --sky:#0c0a24; --sky-lo:#16134a; --box:#101032; --box-2:#1c1c4c; --field:#08081c; --box-dim:#a8a4dc;
+  --brick:#2c64c8; --brick-dk:#0c1c40; --red:#ff4d6a; --grey:#56548a; --deco:.22; --tile:var(--tile-d); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --sky:#0c0a24; --sky-lo:#16134a; --box:#101032; --box-2:#1c1c4c; --field:#08081c; --box-dim:#a8a4dc;
+  --brick:#2c64c8; --brick-dk:#0c1c40; --red:#ff4d6a; --grey:#56548a; --deco:.22; --tile:var(--tile-d); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0}
+body{background:var(--sky);color:var(--hud);font-family:var(--f-body);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img.px,.px{image-rendering:pixelated;image-rendering:crisp-edges}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.sky-text{text-shadow:2px 2px 0 var(--ink)}
+
+#app{padding-inline:var(--g);padding-block:12px 40px;max-width:1440px;margin:0 auto}
+
+/* ---------- HUD ---------- */
+.hud{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 34px;padding-block:6px 4px;text-shadow:2px 2px 0 var(--ink)}
+.hud-cell{display:flex;flex-direction:column;gap:6px;min-width:0}
+.hud-k{font-family:var(--f-hud);font-size:10px;letter-spacing:.08em;color:var(--hud)}
+.hud-v{font-family:var(--f-hud);font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.hud-v.cn{font-family:var(--f-pixel);font-size:18px;line-height:1;max-width:12em;overflow:hidden;text-overflow:ellipsis;display:block}
+.hud-v img{width:12px;height:12px}
+.hud-v b{font-weight:400}
+.hud-v.pop{animation:pop .3s steps(3)}
+@keyframes pop{50%{transform:translateY(-4px)}}
+.hud-side{margin-left:auto;display:flex;align-items:center;gap:14px}
+.save-badge{font-family:var(--f-hud);font-size:8px;color:var(--gold-hi);opacity:.85}
+.hud-btn{background:none;border:0;padding:4px 0;font-family:var(--f-hud);font-size:10px;color:var(--hud);text-shadow:2px 2px 0 var(--ink)}
+.hud-btn:hover{color:var(--gold)}
+
+/* ---------- world map strip ---------- */
+.worldmap{display:flex;align-items:center;gap:0;margin-block:18px 6px;overflow-x:auto;padding-block:26px 6px;scrollbar-width:none}
+.worldmap::-webkit-scrollbar{display:none}
+.wm-node{position:relative;display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;flex:none}
+.wm-tile{width:40px;height:40px;display:grid;place-items:center;background:var(--gold);color:var(--ink);font-family:var(--f-hud);font-size:10px;border:3px solid var(--ink);box-shadow:inset -4px -4px 0 var(--gold-dk),inset 4px 4px 0 #fff6}
+.wm-name{font-family:var(--f-pixel);font-size:18px;line-height:1;text-shadow:2px 2px 0 var(--ink);white-space:nowrap}
+.wm-node[aria-current="step"] .wm-tile{background:var(--red);color:#fff;box-shadow:inset -4px -4px 0 #0005,inset 4px 4px 0 #fff4}
+.wm-node .wm-hero{position:absolute;left:4px;bottom:42px;width:32px;height:32px;display:none}
+.wm-node[aria-current="step"] .wm-hero{display:block;animation:bob 1s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.wm-path{flex:1 0 40px;min-width:40px;max-width:160px;height:0;border-top:6px dotted var(--gold-hi);margin-inline:14px;filter:drop-shadow(2px 2px 0 var(--ink))}
+
+/* ---------- stage chrome ---------- */
+.stage{padding-block:8px 0}
+.stage-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px;margin-block:12px 18px}
+.stage-title{margin:0;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;text-shadow:3px 3px 0 var(--ink);font-weight:400}
+.stage-title .w{font-family:var(--f-hud);font-size:16px}
+.stage-title .n{font-family:var(--f-pixel);font-size:36px;line-height:1}
+.stage-tip{margin:0;font-family:var(--f-pixel);font-size:12px;line-height:1.5;color:var(--gold-hi);text-shadow:2px 2px 0 var(--ink);max-width:40em}
+.stage-actions{margin-left:auto;display:flex;flex-wrap:wrap;gap:10px}
+
+/* ---------- buttons ---------- */
+.btn{--b:var(--gold);--bd:var(--gold-dk);--bf:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--f-pixel);font-size:18px;line-height:1;padding:11px 16px 10px;background:var(--b);color:var(--bf);
+  border:3px solid var(--ink);box-shadow:inset -4px -4px 0 var(--bd),inset 4px 4px 0 #ffffff66,4px 4px 0 var(--ink);
+  transition:transform .06s steps(1);white-space:nowrap;user-select:none}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translate(3px,3px);box-shadow:inset -4px -4px 0 var(--bd),inset 4px 4px 0 #ffffff66,1px 1px 0 var(--ink)}
+.btn[disabled]{filter:grayscale(1) brightness(.8);cursor:not-allowed;opacity:.7}
+.btn-green{--b:var(--pipe);--bd:var(--pipe-dk);--bf:#fff}
+.btn-red{--b:var(--red);--bd:#7a0018;--bf:#fff}
+.btn-box{--b:var(--box-2);--bd:var(--box);--bf:var(--box-fg)}
+.btn.sm{font-size:12px;padding:8px 10px 7px}
+.btn img{width:16px;height:16px}
+
+/* ---------- RPG text box ---------- */
+.box{color-scheme:dark;background:var(--box);color:var(--box-fg);border:4px solid var(--box-fg);box-shadow:0 0 0 3px var(--ink),7px 7px 0 3px #14101e88;padding:16px 18px 18px;min-width:0}
+.box-title{margin:0 0 14px;font-family:var(--f-pixel);font-size:18px;line-height:1.2;font-weight:400;color:var(--gold);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.box-title small{font-size:12px;color:var(--box-dim)}
+.box h4{margin:18px 0 8px;font-family:var(--f-pixel);font-size:12px;font-weight:400;color:var(--gold-hi);letter-spacing:.05em}
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fld>span{font-family:var(--f-pixel);font-size:12px;line-height:1.2;color:var(--box-dim)}
+.fld input,.fld textarea,.fld select,.inp{width:100%;background:var(--field);color:var(--box-fg);border:2px solid var(--box-dim);padding:8px 10px;font-size:14px;border-radius:0;outline:none}
+.fld input:focus,.fld textarea:focus,.fld select:focus,.inp:focus{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.fld textarea{resize:vertical;line-height:1.6}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.btn-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+.tag-sample{font-style:normal;font-family:var(--f-pixel);font-size:12px;line-height:1;background:var(--red);color:#fff;padding:4px 6px 3px;border:2px solid var(--ink)}
+.hint{font-size:12.5px;color:var(--box-dim);margin:8px 0 0}
+.err{font-size:13px;color:#ff8fa3;margin:10px 0 0;min-height:1em}
+
+/* ---------- sample bar ---------- */
+.sample-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:14px;font-family:var(--f-pixel);font-size:12px;line-height:1.5;color:var(--box-fg);background:var(--ink);padding:10px 14px;border-left:8px solid var(--red)}
+.sample-bar b{color:var(--gold);font-weight:400}
+
+/* ---------- level (the timeline) ---------- */
+.level{position:relative;margin-inline:calc(var(--g) * -1);overflow-x:auto;overflow-y:hidden;background:var(--sky);outline:none;
+  border-block:4px solid var(--ink);scrollbar-color:var(--gold) var(--ink)}
+.level:focus-visible{box-shadow:inset 0 0 0 3px var(--gold)}
+.level::-webkit-scrollbar{height:14px;background:var(--ink)}
+.level::-webkit-scrollbar-thumb{background:var(--gold);border:3px solid var(--ink)}
+.track{position:relative;display:flex;align-items:flex-end;gap:56px;padding:132px 60px 64px 40px;min-height:520px;width:max-content;min-width:100%}
+.ground{position:absolute;left:0;right:0;bottom:0;height:64px;background-image:var(--tile);background-size:32px 32px;image-rendering:pixelated;border-top:3px solid var(--ink);z-index:1}
+.deco{position:absolute;image-rendering:pixelated;pointer-events:none;opacity:var(--deco)}
+.deco.cloud{width:120px;height:60px}
+.deco.hill{width:192px;height:96px;bottom:64px;z-index:0}
+.deco.bush{width:144px;height:48px;bottom:64px;z-index:0}
+.hero{position:absolute;left:0;bottom:64px;width:48px;height:48px;z-index:6;image-rendering:pixelated;will-change:transform;pointer-events:none}
+
+.col{position:relative;z-index:2;flex:none;width:272px;display:flex;flex-direction:column;align-items:flex-start}
+.col.slim{width:150px}
+.blk{position:relative;width:48px;height:48px;padding:0;border:0;background:none;display:block}
+.blk img{width:48px;height:48px;display:block;image-rendering:pixelated}
+.blk:hover img{filter:brightness(1.12)}
+.blk.bump{animation:bump .3s steps(4)}
+@keyframes bump{40%{transform:translateY(-12px)}}
+.coin-fx{position:absolute;left:12px;top:-4px;width:24px;height:24px;image-rendering:pixelated;pointer-events:none;animation:coinup .55s steps(6) forwards;z-index:7}
+@keyframes coinup{0%{transform:translateY(0)}60%{transform:translateY(-56px)}100%{transform:translateY(-36px);opacity:0}}
+.stalk{width:4px;margin-left:22px;height:14px;background:var(--pipe);box-shadow:0 0 0 2px var(--ink)}
+.sign{width:100%;background:var(--box);color:var(--box-fg);border:3px solid var(--box-fg);box-shadow:0 0 0 3px var(--ink);padding:9px 12px 10px;text-align:left;display:block;cursor:pointer}
+.sign:hover{border-color:var(--gold)}
+.sign-type{font-family:var(--f-hud);font-size:8px;letter-spacing:.06em;color:var(--gold);display:flex;gap:8px;align-items:center}
+.sign-type .tag-sample{font-size:12px;padding:2px 4px 1px;border-width:1px}
+.sign-type .cn{font-family:var(--f-pixel);font-size:12px;line-height:1;color:var(--gold-hi)}
+.sign-role{display:block;font-weight:700;font-size:15px;line-height:1.35;margin-top:6px}
+.sign-org{display:block;font-size:13px;color:var(--box-dim);line-height:1.4}
+.vine{position:relative;margin-left:22px;padding:10px 0 18px 0;border-left:4px solid var(--pipe);display:flex;flex-direction:column;gap:9px;width:calc(100% - 22px);box-shadow:-2px 0 0 0 var(--ink)}
+.leaf{position:relative;display:flex;align-items:flex-start;gap:0;margin-left:0}
+.leaf::before{content:"";flex:none;width:16px;height:4px;margin-top:11px;background:var(--pipe);box-shadow:0 2px 0 var(--pipe-dk)}
+.leaf-t{background:var(--plaque);color:var(--plaque-ink);border:2px solid var(--ink);padding:3px 8px;font-size:12.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-left:16px}
+.tagc{display:inline-flex;align-items:center;gap:4px;background:var(--ink);color:var(--gold-hi);padding:2px 7px 2px 4px;font-size:12px;line-height:1.5;border:1px solid var(--gold-dk)}
+.tagc img{width:12px;height:12px}
+.stem{margin-left:22px;width:4px;flex:1 0 18px;background:var(--pipe);box-shadow:-2px 0 0 var(--ink)}
+.col .date{position:absolute;left:-6px;bottom:-46px;z-index:3;font-family:var(--f-hud);font-size:9px;line-height:1.5;color:#fff;text-shadow:2px 2px 0 var(--ink);white-space:nowrap}
+.col .year{position:absolute;left:-6px;bottom:-26px;z-index:3;font-family:var(--f-hud);font-size:12px;color:var(--gold);text-shadow:2px 2px 0 var(--ink)}
+.startpost{display:flex;flex-direction:column;align-items:flex-start;gap:0}
+.startpost .plank{background:var(--plaque);color:var(--ink);border:3px solid var(--ink);font-family:var(--f-hud);font-size:10px;padding:8px 10px}
+.startpost .post{width:8px;height:70px;margin-left:16px;background:var(--brick-dk);border:2px solid var(--ink)}
+.flagpole{position:relative;height:300px;width:120px}
+.flagpole .pole{position:absolute;left:30px;bottom:0;width:6px;height:290px;background:var(--pipe-hi);border:2px solid var(--ink)}
+.flagpole .ball{position:absolute;left:25px;top:-8px;width:16px;height:16px;background:var(--pipe);border:3px solid var(--ink);border-radius:50%}
+.flagpole .flag{position:absolute;left:36px;top:14px;width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent;border-left:52px solid #fcfcfc;filter:drop-shadow(2px 2px 0 var(--ink))}
+.flagpole .base{position:absolute;left:18px;bottom:0;width:32px;height:32px;background:var(--brick);border:3px solid var(--ink)}
+.flagpole button{position:absolute;inset:0;background:none;border:0}
+.flagpole .lbl{position:absolute;left:62px;top:70px;font-family:var(--f-pixel);font-size:18px;line-height:1.3;text-shadow:2px 2px 0 var(--ink);width:6em}
+
+.w1-panels{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:34px;margin-top:34px}
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.slot{position:relative;background:var(--field);border:3px solid var(--box-dim);padding:8px 10px 6px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.slot-name{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:16px}
+.slot-stars{display:flex;gap:2px;background:none;border:0;padding:0;width:max-content}
+.slot-stars img{width:16px;height:16px}
+.slot-x{position:absolute;right:2px;top:0;background:none;border:0;color:var(--box-dim);font-size:16px;line-height:1;padding:4px}
+.slot-x:hover{color:var(--red)}
+.inv-add{display:flex;gap:10px;margin-top:14px}
+.inv-add .inp{flex:1;min-width:0}
+.inv-empty{font-size:13px;color:var(--box-dim);grid-column:1/-1}
+
+.stage-next{display:flex;justify-content:flex-end;margin-top:40px}
+.pipe-btn{position:relative;font-family:var(--f-pixel);font-size:18px;line-height:1;color:#fff;background:var(--pipe);border:3px solid var(--ink);padding:16px 26px 14px 26px;
+  box-shadow:inset 10px 0 0 var(--pipe-hi),inset -14px 0 0 var(--pipe-dk),5px 5px 0 var(--ink);text-shadow:2px 2px 0 var(--pipe-dk)}
+.pipe-btn::before{content:"";position:absolute;left:-10px;right:-10px;top:-14px;height:14px;background:var(--pipe);border:3px solid var(--ink);box-shadow:inset 10px 0 0 var(--pipe-hi),inset -14px 0 0 var(--pipe-dk)}
+.pipe-btn:hover{filter:brightness(1.1)}
+.pipe-btn:active{transform:translateY(3px)}
+
+/* ---------- world 2 ---------- */
+.w2-grid{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:34px;align-items:stretch}
+.jd-text{min-height:300px}
+.pipe-zone{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-height:300px}
+.bigpipe{position:relative;width:132px;height:220px}
+.bigpipe .lip{position:absolute;left:0;right:0;top:0;height:44px;background:var(--pipe);border:4px solid var(--ink);box-shadow:inset 14px 0 0 var(--pipe-hi),inset -22px 0 0 var(--pipe-dk)}
+.bigpipe .body{position:absolute;left:12px;right:12px;top:40px;bottom:0;background:var(--pipe);border:4px solid var(--ink);border-bottom:0;box-shadow:inset 12px 0 0 var(--pipe-hi),inset -20px 0 0 var(--pipe-dk)}
+.bigpipe .mouth{position:absolute;left:10px;right:10px;top:6px;height:10px;background:var(--ink)}
+.drop-paper{position:absolute;left:50%;top:0;width:44px;height:56px;margin-left:-22px;background:#fcfcfc;border:3px solid var(--ink);z-index:0;
+  background-image:linear-gradient(var(--grey) 3px,transparent 3px);background-size:100% 9px;background-position:0 8px;background-clip:content-box;padding:6px 6px;opacity:0}
+.drop-paper.go{animation:dropin .7s steps(7) forwards}
+@keyframes dropin{0%{opacity:1;transform:translateY(-10px)}70%{opacity:1;transform:translateY(60px)}100%{opacity:0;transform:translateY(84px)}}
+.burst{position:absolute;left:50%;top:80px;width:0;height:0;z-index:4}
+.burst img{position:absolute;width:24px;height:24px;image-rendering:pixelated;animation:burst .9s steps(9) forwards}
+@keyframes burst{0%{transform:translate(-12px,0)}50%{transform:translate(var(--dx),var(--dy))}100%{transform:translate(var(--dx),calc(var(--dy) + 30px));opacity:0}}
+.pipe-zone .btn{margin-bottom:22px;position:relative;z-index:3}
+.w2-results{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:34px;margin-top:34px}
+.an-sum{font-family:var(--f-pixel);font-size:12px;line-height:1.6;color:var(--gold-hi);margin:0 0 12px}
+.kw-list{display:flex;flex-wrap:wrap;gap:8px}
+.kw{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 5px;font-size:13px;line-height:1.4;border:2px solid var(--ink)}
+.kw img{width:16px;height:16px}
+.kw.hit{background:var(--gold);color:var(--ink)}
+.kw.miss{background:var(--field);color:var(--box-dim);border-color:var(--grey);border-style:dashed}
+.kw small{font-size:11px;opacity:.8}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--box-dim);margin-bottom:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend img{width:14px;height:14px}
+.req-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.req{display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 10px;align-items:start}
+.req img{width:24px;height:24px;margin-top:1px}
+.req p{margin:0;font-size:13.5px;line-height:1.55}
+.req .src{grid-column:2;font-size:12px;color:var(--box-dim)}
+.req .src b{color:var(--gold-hi);font-weight:500}
+.empty-note{font-size:13px;color:var(--box-dim);margin:0}
+
+/* ---------- world 3 ---------- */
+.w3-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:34px;align-items:start}
+.paper-wrap{min-width:0}
+.paper-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:14px;font-family:var(--f-pixel);font-size:12px;text-shadow:2px 2px 0 var(--ink)}
+.seg{display:inline-flex;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.seg button{background:var(--box-2);color:var(--box-fg);border:0;padding:7px 10px 6px;font-family:var(--f-pixel);font-size:12px;line-height:1;text-shadow:none}
+.seg button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
+.sw{width:24px;height:24px;border:3px solid var(--ink);padding:0;box-shadow:2px 2px 0 var(--ink)}
+.sw[aria-pressed="true"]{outline:3px solid #fff;outline-offset:1px}
+.paper-frame{background:#e9e6f6;padding:18px;border:4px solid var(--ink);box-shadow:7px 7px 0 #14101e88;overflow-x:auto}
+.paper-frame .paper{box-shadow:0 1px 0 #0001,0 8px 24px #14101e33}
+.paper-note{font-family:var(--f-pixel);font-size:12px;line-height:1.5;color:var(--gold-hi);text-shadow:2px 2px 0 var(--ink);margin:10px 0 0}
+.clear-panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.score{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 16px}
+.score-num{font-family:var(--f-hud);font-size:28px;color:var(--gold);text-shadow:3px 3px 0 var(--ink)}
+.score-stars{display:flex;gap:4px;grid-row:span 2}
+.score-stars img{width:32px;height:32px}
+.score-label{font-family:var(--f-pixel);font-size:12px;color:var(--box-dim)}
+.stack{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.stack .btn{width:100%}
+.ai-state{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--box-dim);min-height:20px}
+.ai-state img{width:24px;height:24px}
+.ai-state.run img{animation:run .3s steps(2) infinite}
+@keyframes run{50%{transform:translateY(-2px)}}
+.tips{margin:0;padding-left:1.1em;font-size:13px;line-height:1.6;display:flex;flex-direction:column;gap:6px}
+.stale{font-size:12.5px;color:var(--gold-hi);background:var(--box-2);padding:8px 10px;margin-top:12px;border-left:4px solid var(--gold)}
+.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.exp-grid .btn{width:100%}
+
+/* ---------- overlays ---------- */
+.title-screen{position:fixed;inset:0;z-index:50;background:var(--sky);overflow:hidden;display:flex;align-items:center}
+.title-screen .ground{height:96px;background-size:48px 48px}
+.title-inner{position:relative;z-index:3;padding-inline:max(24px,8vw);padding-block:24px 120px;max-width:900px}
+.logo{font-family:var(--f-pixel);font-size:clamp(48px,10vw,108px);line-height:1;color:var(--gold);margin:0;font-weight:400;
+  text-shadow:4px 0 var(--ink),-4px 0 var(--ink),0 4px var(--ink),0 -4px var(--ink),4px 4px var(--ink),-4px -4px var(--ink),4px -4px var(--ink),-4px 4px var(--ink),10px 10px 0 var(--brick-dk)}
+.logo-en{font-family:var(--f-hud);font-size:clamp(12px,2vw,18px);margin-top:22px;letter-spacing:.1em;text-shadow:3px 3px 0 var(--ink)}
+.title-sub{font-family:var(--f-pixel);font-size:18px;line-height:1.5;margin:26px 0 30px;color:var(--gold-hi);text-shadow:2px 2px 0 var(--ink)}
+.title-menu{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.title-menu button{background:none;border:0;padding:6px 0 6px 34px;position:relative;font-family:var(--f-pixel);font-size:24px;line-height:1;color:#fff;text-shadow:3px 3px 0 var(--ink)}
+.title-menu button::before{content:"";position:absolute;left:4px;top:50%;margin-top:-8px;border-left:14px solid var(--gold);border-top:8px solid transparent;border-bottom:8px solid transparent;opacity:0;filter:drop-shadow(2px 2px 0 var(--ink))}
+.title-menu button:hover::before,.title-menu button:focus-visible::before,.title-menu button.sel::before{opacity:1}
+.title-menu button:focus-visible{outline:none;color:var(--gold)}
+.title-menu button:hover{color:var(--gold)}
+.title-foot{position:absolute;right:max(24px,6vw);bottom:30px;z-index:3;font-family:var(--f-hud);font-size:10px;text-shadow:2px 2px 0 var(--ink);animation:blink 1.2s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.title-hero{position:absolute;bottom:96px;right:22%;width:96px;height:96px;z-index:3;image-rendering:pixelated}
+.title-block{position:absolute;bottom:250px;right:calc(22% + 0px);width:96px;height:96px;z-index:3;image-rendering:pixelated}
+
+.inter{position:fixed;inset:0;z-index:60;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+.inter-w{font-family:var(--f-hud);font-size:22px}
+.inter-n{font-family:var(--f-pixel);font-size:36px;line-height:1}
+.inter-l{display:flex;align-items:center;gap:14px;font-family:var(--f-hud);font-size:14px}
+.inter-l img{width:48px;height:48px}
+
+.banner{position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);z-index:55;background:#000;color:#fff;padding:34px 16px;text-align:center;border-block:6px solid var(--gold);pointer-events:none;animation:band 1.9s steps(12) forwards}
+.banner-big{font-family:var(--f-hud);font-size:clamp(20px,4vw,40px);color:var(--gold);text-shadow:4px 4px 0 var(--brick-dk)}
+.banner-sub{font-family:var(--f-pixel);font-size:24px;line-height:1;margin-top:18px}
+@keyframes band{0%{clip-path:inset(50% 0)}12%{clip-path:inset(0 0)}85%{clip-path:inset(0 0);opacity:1}100%{clip-path:inset(0 0);opacity:0}}
+
+.modal{position:fixed;inset:0;z-index:40;background:#14101ecc;display:flex;align-items:center;justify-content:center;padding:20px 16px}
+.modal .box{width:min(640px,100%);max-height:calc(100vh - 40px);overflow:auto}
+.type-pick{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.type-pick label{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 2px 6px;border:3px solid var(--box-2);background:var(--field);cursor:pointer;font-family:var(--f-pixel);font-size:12px;line-height:1}
+.type-pick input{position:absolute;opacity:0;pointer-events:none}
+.type-pick img{width:32px;height:32px}
+.type-pick label:has(input:checked){border-color:var(--gold);background:var(--box-2)}
+.type-pick label:has(input:focus-visible){outline:3px solid var(--gold);outline-offset:2px}
+.form-stack{display:flex;flex-direction:column;gap:12px}
+.now-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--box-dim);margin-top:4px}
+.howto{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+.howto li{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center;font-size:14px}
+.howto img{width:40px;height:40px}
+.howto b{font-family:var(--f-pixel);font-weight:400;font-size:18px;color:var(--gold);display:block;line-height:1.3}
+
+.toast{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;max-width:min(420px,calc(100vw - 32px));background:var(--box);color:var(--box-fg);border:3px solid var(--box-fg);box-shadow:0 0 0 3px var(--ink);padding:10px 14px;font-size:13.5px;line-height:1.5;transform:translateY(160%);visibility:hidden;transition:transform .2s steps(4),visibility 0s .2s}
+.toast.on{transform:none;visibility:visible;transition:transform .2s steps(4)}
+.foot{margin-top:56px;font-size:12px;color:var(--gold-hi);text-shadow:1px 1px 0 var(--ink);display:flex;flex-wrap:wrap;gap:6px 18px;opacity:.9}
+
+@media (max-width:960px){
+  .w1-panels,.w2-results,.w3-grid{grid-template-columns:minmax(0,1fr)}
+  .w2-grid{grid-template-columns:minmax(0,1fr)}
+  .pipe-zone{min-height:0;flex-direction:row;justify-content:center;gap:24px;align-items:flex-end}
+  .bigpipe{width:100px;height:120px}
+  .clear-panel{position:static}
+  .stage-actions{margin-left:0}
+}
+@media (max-width:560px){
+  .hud{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}
+  .hud-cell:nth-child(3){display:none}
+  .hud-side{grid-column:1/-1;margin-left:0;gap:18px}
+  .hud-v.cn{font-size:12px}
+  .worldmap{margin-top:8px}
+  .stage-title .n{font-size:24px}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+  .type-pick{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .btn{font-size:12px;padding:9px 11px 8px}
+  .wm-name{font-size:12px}
+  .track{min-height:480px}
+  .col{width:236px}
+  .title-hero,.title-block{right:8%;width:64px;height:64px}
+  .title-block{bottom:220px}
+  .exp-grid{grid-template-columns:1fr}
+}
+/* ---------- touch gamepad (any touch screen, always in the phone build) ---------- */
+.pad{display:none;align-items:center;gap:12px;margin-inline:calc(var(--g) * -1);padding:12px var(--g);background:var(--ink);border-bottom:4px solid var(--ink)}
+@media (pointer:coarse){.pad{display:flex}}
+html.m .pad{display:flex}
+.pad-btn,.pad-a{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;flex:none}
+.pad-btn{width:58px;height:52px;background:#3c3a5c;border:3px solid #000;box-shadow:inset -4px -4px 0 #24223c,inset 4px 4px 0 #ffffff22;display:grid;place-items:center}
+.pad-btn:active{transform:translateY(2px);background:#2c2a48}
+.tri{width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent}
+.tri.l{border-right:16px solid #fcfcfc}
+.tri.r{border-left:16px solid #fcfcfc}
+.pad-hint{flex:1;min-width:0;font-family:var(--f-pixel);font-size:12px;line-height:1.5;color:#a8a4dc;text-align:center}
+.pad-a{width:64px;height:64px;border-radius:50%;background:#e4002b;color:#fff;border:3px solid #000;font-family:var(--f-hud);font-size:16px;box-shadow:inset -5px -5px 0 #7a0018,inset 4px 4px 0 #ffffff44}
+.pad-a:active{transform:translateY(2px);box-shadow:inset -2px -2px 0 #7a0018}
+
+/* ---------- phone build (html.m): thumb-first layout ---------- */
+html.m body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+html.m .worldmap{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--ink);border-top:4px solid var(--gold-dk);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible}
+html.m .wm-path,html.m .wm-node .wm-hero{display:none!important}
+html.m .wm-node{flex-direction:column;justify-content:center;gap:6px;padding:2px 0}
+html.m .wm-tile{width:36px;height:28px;font-size:8px}
+html.m .wm-name{font-size:12px;text-shadow:none}
+html.m .wm-node[aria-current="step"] .wm-name{color:var(--gold)}
+html.m .hud{display:flex;flex-wrap:nowrap;align-items:flex-end;gap:16px}
+html.m .hud-cell:nth-child(3),html.m .hud-cell:nth-child(4),html.m .save-badge{display:none}
+html.m .hud-v.cn{font-size:12px;max-width:6.5em}
+html.m .hud-side{margin-left:auto;width:auto;gap:10px;flex-direction:column;align-items:flex-end}
+html.m .hud-btn{font-size:8px}
+html.m .stage-head{margin-top:16px}
+html.m .stage-title .n{font-size:24px}
+html.m .stage-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:12px}
+html.m .stage-actions .btn{width:100%}
+html.m .stage-next{display:none}
+html.m .track{padding-top:96px;min-height:440px}
+html.m .col{width:236px}
+html.m .modal{padding:0;align-items:flex-end}
+html.m .modal .box{width:100%;max-height:92vh;border-bottom-width:0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+html.m .fld input,html.m .fld textarea,html.m .fld select,html.m .inp{font-size:16px}
+html.m .toast{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+html.m .paper-frame{padding:8px;margin-inline:calc(var(--g) * -1);border-inline:0}
+html.m .title-foot{bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition:none!important}}
+@media print{
+  body{background:#fff!important}
+  body>*:not(#app),.hud,.worldmap,.foot,.stage-head,#w1,#w2,.paper-bar,.paper-note,.clear-panel{display:none!important}
+  #app{padding:0;max-width:none}
+  .w3-grid{display:block}
+  .paper-frame{border:0;box-shadow:none;padding:0;background:none;overflow:visible}
+  #paper{box-shadow:none!important}
+}
+</style>
+<!--/HEAD-->
+</head>
+<body>
+<!--BODY-->
+<div id="app">
+  <header class="hud" aria-label="状态栏">
+    <div class="hud-cell"><span class="hud-k">PLAYER</span><span class="hud-v cn" id="hudName">—</span></div>
+    <div class="hud-cell"><span class="hud-k">COINS</span><span class="hud-v" id="hudCoinsWrap"><img class="px" data-spr="coin" alt="">×<b id="hudCoins">00</b></span></div>
+    <div class="hud-cell"><span class="hud-k">ITEMS</span><span class="hud-v"><b id="hudItems">00</b></span></div>
+    <div class="hud-cell"><span class="hud-k">WORLD</span><span class="hud-v"><b id="hudWorld">1-1</b></span></div>
+    <div class="hud-cell"><span class="hud-k">MATCH</span><span class="hud-v"><b id="hudMatch">--</b></span></div>
+    <div class="hud-side">
+      <span class="save-badge" id="saveBadge">LOCAL SAVE</span>
+      <button class="hud-btn" id="sndBtn" aria-pressed="true">SOUND ON</button>
+      <button class="hud-btn" id="titleBtn">TITLE</button>
+    </div>
+  </header>
+
+  <nav class="worldmap" aria-label="关卡">
+    <button class="wm-node" data-w="1"><img class="wm-hero px" data-spr="hero0" alt=""><span class="wm-tile">1-1</span><span class="wm-name">经历地图</span></button>
+    <span class="wm-path" aria-hidden="true"></span>
+    <button class="wm-node" data-w="2"><img class="wm-hero px" data-spr="hero0" alt=""><span class="wm-tile">1-2</span><span class="wm-name">JD 管道</span></button>
+    <span class="wm-path" aria-hidden="true"></span>
+    <button class="wm-node" data-w="3"><img class="wm-hero px" data-spr="hero0" alt=""><span class="wm-tile">1-3</span><span class="wm-name">专属简历</span></button>
+  </nav>
+
+  <main>
+    <!-- WORLD 1-1 -->
+    <section class="stage" id="w1" aria-labelledby="w1t">
+      <div class="stage-head">
+        <h2 class="stage-title" id="w1t"><span class="w">WORLD 1-1</span><span class="n">经历地图</span></h2>
+        <p class="stage-tip">时间从左往右走。点方块或路牌编辑；键盘 ← → 走路，空格顶方块。</p>
+        <div class="stage-actions">
+          <button class="btn" id="addBtn">+ 新增经历</button>
+          <button class="btn btn-green" id="importBtn">导入旧简历</button>
+          <button class="btn btn-box" id="exportSave">导出存档</button>
+          <label class="btn btn-box" for="loadSave" tabindex="0" id="loadSaveLbl">读取存档</label>
+          <input type="file" id="loadSave" accept=".json,application/json" hidden>
+        </div>
+      </div>
+      <div class="sample-bar" id="sampleBar" hidden>
+        <span id="sampleText"></span>
+        <button class="btn btn-red sm" id="clearSample">清空示例，开始我的冒险</button>
+      </div>
+      <div class="level" id="level" tabindex="0" aria-label="经历时间线，按开始时间从左到右排列">
+        <div class="track" id="track"></div>
+      </div>
+      <div class="pad" id="pad" aria-label="手柄">
+        <button class="pad-btn" data-dir="-1" aria-label="向左走"><span class="tri l"></span></button>
+        <button class="pad-btn" data-dir="1" aria-label="向右走"><span class="tri r"></span></button>
+        <span class="pad-hint">按住走路<br>走到经历下面按 A 顶方块</span>
+        <button class="pad-a" id="padA" aria-label="跳起来顶方块">A</button>
+      </div>
+
+      <div class="w1-panels">
+        <section class="box" aria-labelledby="cardT">
+          <h3 class="box-title" id="cardT">角色卡 <small>简历抬头用的信息</small></h3>
+          <div class="form-stack">
+            <div class="grid2">
+              <label class="fld"><span>姓名</span><input id="b_name" autocomplete="name"></label>
+              <label class="fld"><span>求职意向</span><input id="b_title" placeholder="例如：内容运营"></label>
+              <label class="fld"><span>电话</span><input id="b_phone" autocomplete="tel"></label>
+              <label class="fld"><span>邮箱</span><input id="b_email" autocomplete="email"></label>
+              <label class="fld"><span>城市</span><input id="b_city"></label>
+              <label class="fld"><span>作品集 / 主页</span><input id="b_link"></label>
+            </div>
+            <label class="fld"><span>个人简介（两三句就够）</span><textarea id="b_summary" rows="3"></textarea></label>
+          </div>
+        </section>
+        <section class="box" aria-labelledby="invT">
+          <h3 class="box-title" id="invT">道具栏 <small>技能 · 点星星改熟练度</small></h3>
+          <div class="inv-grid" id="invGrid"></div>
+          <form class="inv-add" id="skillForm">
+            <input class="inp" id="skillInput" placeholder="输入技能，回车放进背包" aria-label="新技能">
+            <button class="btn sm" type="submit">放进背包</button>
+          </form>
+        </section>
+      </div>
+      <div class="stage-next"><button class="pipe-btn" data-go="2">钻进管道 · 1-2 投递 JD</button></div>
+    </section>
+
+    <!-- WORLD 1-2 -->
+    <section class="stage" id="w2" aria-labelledby="w2t" hidden>
+      <div class="stage-head">
+        <h2 class="stage-title" id="w2t"><span class="w">WORLD 1-2</span><span class="n">JD 管道</span></h2>
+        <p class="stage-tip">把招聘信息丢进管道。金币是你已经有的，空块是 JD 要但你档案里还没有的。</p>
+      </div>
+      <div class="w2-grid">
+        <section class="box" aria-labelledby="jdT">
+          <h3 class="box-title" id="jdT">招聘卷轴 <em class="tag-sample" id="jdSampleTag" hidden>示例</em></h3>
+          <div class="form-stack">
+            <div class="grid2">
+              <label class="fld"><span>公司</span><input id="jdCompany"></label>
+              <label class="fld"><span>岗位</span><input id="jdPosition"></label>
+            </div>
+            <label class="fld"><span>JD 全文（从招聘网站整段复制过来）</span><textarea class="jd-text" id="jdText" rows="14"></textarea></label>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-box sm" id="jdClear">清空卷轴</button>
+          </div>
+        </section>
+        <div class="pipe-zone">
+          <button class="btn" id="analyzeBtn">丢进管道 ▼</button>
+          <div class="bigpipe" aria-hidden="true">
+            <div class="drop-paper" id="dropPaper"></div>
+            <div class="body"></div><div class="lip"><div class="mouth"></div></div>
+            <div class="burst" id="burst"></div>
+          </div>
+        </div>
+      </div>
+      <div class="w2-results">
+        <section class="box" aria-labelledby="kwT">
+          <h3 class="box-title" id="kwT">掉落物 · 关键词</h3>
+          <p class="an-sum" id="anSum"></p>
+          <div class="legend"><span><img class="px" data-spr="coin" alt="">你有</span><span><img class="px" data-spr="qused" alt="">还缺</span><span>「优先」= 加分项，权重减半</span></div>
+          <div class="kw-list" id="kwList"></div>
+        </section>
+        <section class="box" aria-labelledby="reqT">
+          <h3 class="box-title" id="reqT">需求对照表 <small>JD 每条要求 ↔ 你的哪段经历</small></h3>
+          <ol class="req-list" id="reqList"></ol>
+        </section>
+      </div>
+      <div class="stage-next"><button class="pipe-btn" data-go="3">去生成专属简历 · 1-3</button></div>
+    </section>
+
+    <!-- WORLD 1-3 -->
+    <section class="stage" id="w3" aria-labelledby="w3t" hidden>
+      <div class="stage-head">
+        <h2 class="stage-title" id="w3t"><span class="w">WORLD 1-3</span><span class="n">专属简历</span></h2>
+        <p class="stage-tip">只用你档案里真实的经历，按这个岗位挑选、排序、加粗关键词。纸上的字都能直接点进去改。</p>
+      </div>
+      <div class="w3-grid">
+        <div class="paper-wrap">
+          <div class="paper-bar">
+            <span>模板</span>
+            <span class="seg" role="group" aria-label="模板">
+              <button data-tpl="classic" aria-pressed="true">经典黑白</button>
+              <button data-tpl="color" aria-pressed="false">主题色</button>
+            </span>
+            <span>强调色</span>
+            <span style="display:inline-flex;gap:10px" role="group" aria-label="强调色">
+              <button class="sw" data-acc="brick" style="background:#b4441a" aria-label="砖红" aria-pressed="true"></button>
+              <button class="sw" data-acc="pipe" style="background:#1f7a3a" aria-label="水管绿" aria-pressed="false"></button>
+              <button class="sw" data-acc="night" style="background:#24408e" aria-label="夜空蓝" aria-pressed="false"></button>
+            </span>
+          </div>
+          <div class="paper-frame"><article class="paper" id="paper" contenteditable="true" spellcheck="false" aria-label="简历，可直接编辑"></article></div>
+          <p class="paper-note" id="paperNote"></p>
+        </div>
+        <aside class="box clear-panel" aria-labelledby="clrT">
+          <h3 class="box-title" id="clrT">结算 <small id="clrFor"></small></h3>
+          <div class="score">
+            <div class="score-stars" id="stars"></div>
+            <div class="score-num" id="scoreNum">--%</div>
+            <div class="score-label">岗位匹配度</div>
+          </div>
+          <div class="stale" id="staleNote" hidden>档案或 JD 改过了，点「重新生成」更新。重新生成会覆盖你在纸上的手动修改。</div>
+          <div class="stack">
+            <button class="btn" id="genLocal">生成简历（即时）</button>
+            <button class="btn btn-green" id="genAI" disabled>Claude 精修措辞</button>
+            <div class="ai-state" id="aiState"></div>
+            <button class="btn btn-red sm" id="aiStop" hidden>停止</button>
+          </div>
+          <h4>命中关键词</h4>
+          <div class="kw-list" id="hitList"></div>
+          <h4>还缺的道具</h4>
+          <div class="kw-list" id="missList"></div>
+          <h4>补强建议</h4>
+          <ul class="tips" id="tipList"></ul>
+          <h4>带走简历</h4>
+          <div class="exp-grid">
+            <button class="btn btn-box sm" id="copyTxt">复制文本</button>
+            <button class="btn btn-box sm" id="dlMd">下载 Markdown</button>
+            <button class="btn btn-box sm" id="dlHtml">下载 HTML</button>
+            <button class="btn btn-box sm" id="printBtn">打印 / 存 PDF</button>
+          </div>
+          <p class="hint" id="exportHint"></p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>RESUME QUEST v1.0</span>
+    <span id="footStore">档案自动保存在这个浏览器里</span>
+    <span>像素字体 Fusion Pixel（SIL OFL）</span>
+  </footer>
+</div>
+
+<!-- title screen -->
+<div class="title-screen" id="title" role="dialog" aria-modal="true" aria-label="标题画面">
+  <div id="titleDeco"></div>
+  <div class="title-inner">
+    <h1 class="logo">简历<br>大冒险</h1>
+    <div class="logo-en">RESUME QUEST</div>
+    <p class="title-sub">贴一份招聘 JD，生成这个岗位的专属简历。</p>
+    <ul class="title-menu" id="titleMenu">
+      <li><button data-act="start" class="sel">开始冒险</button></li>
+      <li><button data-act="howto">怎么玩</button></li>
+      <li><button data-act="load">读取存档</button></li>
+    </ul>
+  </div>
+  <img class="title-block px" data-spr="qblock" alt="">
+  <img class="title-hero px" data-spr="hero0" alt="">
+  <div class="ground"></div>
+  <div class="title-foot">PRESS ENTER</div>
+</div>
+
+<div class="inter" id="inter" hidden>
+  <div class="inter-w" id="interW">WORLD 1-1</div>
+  <div class="inter-n" id="interN">经历地图</div>
+  <div class="inter-l"><img class="px" data-spr="hero0" alt=""><span>×</span><span id="interC">00</span></div>
+</div>
+<div class="banner" id="banner" hidden><div class="banner-big">COURSE CLEAR!</div><div class="banner-sub" id="bannerSub"></div></div>
+<div class="modal" id="modal" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="mTitle"><h3 class="box-title" id="mTitle"></h3><div id="mBody"></div><p class="err" id="mErr"></p><div class="btn-row" id="mFoot"></div></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const IN_VIEWER = !!(window.claude && typeof window.claude.use === 'function');
+const MOBILE = /*MOBILE*/false; // build.mjs flips this for the phone build
+if (MOBILE) document.documentElement.classList.add('m');
+const TOUCH = MOBILE || matchMedia('(pointer: coarse)').matches;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : String(c));
+  return n;
+}
+
+/* =========================================================
+   Pixel sprites (original art, drawn at 16px and scaled)
+   ========================================================= */
+const PAL = { k:'#14101e', w:'#fcfcfc', y:'#f8b800', o:'#ac7c00', r:'#d82800', t:'#00a8a8', s:'#fcb48c', b:'#2858d8', d:'#3c2c5c', O:'#fc7c00',
+  g:'#00a800', G:'#005800', l:'#b8f818', B:'#c84c0c', D:'#5c1c00', p:'#fcbcb0', c:'#fce0a8', h:'#8c5414', u:'#6c6a8c' };
+const HERO_TOP = [
+  '.....kkkkkk.....', '....kttttttk....', '...ktwttttttk...', '...kttttttttk...', '..kkkkkkkkkkkk..', '...kssssssssk...',
+  '...kskssssksk...', '...kssssssssk...', '....kssrrssk....', '...kOOOOOOOOk...', '..kbbbOObbbkwwk.', '..kbbbbbbbbkwwk.', '..ksbbbbbbskwwk.'];
+const ROWS = {
+  hero0: [...HERO_TOP, '...kbbbbbbk.kk..', '...kddk.kddk....', '..kkkk...kkkk...'],
+  hero1: [...HERO_TOP, '...kbbbbbbk.kk..', '..kddk...kddk...', '.kkk.......kkk..'],
+  heroJ: [...HERO_TOP, '...kbbbbbbk.kk..', '..kddk..kddk....', '..kkk....kkk....'],
+  brick: ['pppppppDpppppppD','BBBBBBBDBBBBBBBD','BBBBBBBDBBBBBBBD','DDDDDDDDDDDDDDDD','pppDpppppppDpppp','BBBDBBBBBBBDBBBB','BBBDBBBBBBBDBBBB','DDDDDDDDDDDDDDDD',
+          'pppppppDpppppppD','BBBBBBBDBBBBBBBD','BBBBBBBDBBBBBBBD','DDDDDDDDDDDDDDDD','pppDpppppppDpppp','BBBDBBBBBBBDBBBB','BBBDBBBBBBBDBBBB','DDDDDDDDDDDDDDDD'],
+  brickBlk: ['kkkkkkkkkkkkkkkk','kpppppkpppppppkk','kBBBBBkBBBBBBBkk','kBBBBBkBBBBBBBkk','kkkkkkkkkkkkkkkk','kppkppppppkpppkk','kBBkBBBBBBkBBBkk','kBBkBBBBBBkBBBkk',
+          'kkkkkkkkkkkkkkkk','kpppppkpppppppkk','kBBBBBkBBBBBBBkk','kBBBBBkBBBBBBBkk','kkkkkkkkkkkkkkkk','kppkppppppkpppkk','kBBkBBBBBBkBBBkk','kkkkkkkkkkkkkkkk'],
+  pipe: ['kkkkkkkkkkkkkkkk','klgggggggggGGGGk','klgggggggggGGGGk','klgggggggggGGGGk','klgggggggggGGGGk','kkkkkkkkkkkkkkkk',
+         '.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kklgggggggGGGk.','.kkkkkkkkkkkkkk.'],
+  mush: ['......kkkk......','....kkrrrrkk....','...krrwwwwrrk...','..krrwwwwwwrrk..','..krrwwwwwwrrk..','.kwrrrwwwwrrrwk.','.kwwrrrrrrrrwwk.','kwwwrrrrrrrrwwwk',
+         'kwwrrrrrrrrrrwwk','krrrrrrrrrrrrrrk','.kkkkkkkkkkkkkk.','...kcccccccck...','...kcckcckcck...','...kcccccccck...','....kcccccck....','.....kkkkkk.....'],
+  star: ['.......kk.......','......kyyk......','......kyyk......','.....kyyyyk.....','kkkkkkyyyykkkkkk','kyyyyyyyyyyyyyyk','.kyyyyykkyyyyyk.','..kyyyykkyyyyk..',
+         '...kyyyyyyyyk...','...kyyyyyyyyk...','..kyyyyyyyyyyk..','..kyyyykkyyyyk..','.kyyyk....kyyyk.','.kyyk......kyyk.','.kk..........kk.','................'],
+  coin: ['......kkkk......','.....kyyyyk.....','....kyywyyok....','....kywyyyok....','....kywyyyok....','....kywyyyok....','....kywyyyok....','....kywyyyok....',
+         '....kywyyyok....','....kywyyyok....','....kywyyyok....','....kyyyyyok....','.....kyyyok.....','......kkkk......','................','................']
+};
+const GLYPH_Q = ['.wwww.','ww..ww','....ww','...ww.','..ww..','..ww..','......','..ww..'];
+const GLYPH_P = ['..ww..','..ww..','wwwwww','wwwwww','..ww..','..ww..','......','......'];
+const GLYPH_0 = ['......','......','......','......','......','......','......','......'];
+function blockRows(glyph, f, d) {
+  const R = ['.kkkkkkkkkkkkkk.', 'k' + f.repeat(14) + 'k', 'k' + f + d + f.repeat(10) + d + f + 'k'];
+  for (const g of glyph) R.push('k' + f.repeat(4) + g.replace(/\./g, f) + f.repeat(4) + 'k');
+  R.push('k' + f.repeat(14) + 'k', 'k' + f + d + f.repeat(10) + d + f + 'k', 'k' + f.repeat(14) + 'k', 'k' + d.repeat(14) + 'k', '.kkkkkkkkkkkkkk.');
+  return R;
+}
+ROWS.qblock = blockRows(GLYPH_Q, 'y', 'o');
+ROWS.plus = blockRows(GLYPH_P, 'g', 'G');
+ROWS.qused = blockRows(GLYPH_0, 'h', 'D');
+ROWS.starOff = ROWS.star.map(r => r.replace(/y/g, 'u'));
+ROWS.coinOff = ROWS.coin.map(r => r.replace(/[yo]/g, 'u').replace(/w/g, 'c'));
+
+function spriteCanvas(rows, pal = PAL) {
+  const c = document.createElement('canvas'); c.width = 16; c.height = rows.length;
+  const x = c.getContext('2d');
+  rows.forEach((row, yy) => { for (let xx = 0; xx < 16; xx++) { const ch = row[xx] || '.'; if (ch === '.') continue; x.fillStyle = pal[ch] || '#f0f'; x.fillRect(xx, yy, 1, 1); } });
+  return c;
+}
+function shapeCanvas(w, h, inside, fill, edge, extra) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  const ins = (a, b) => a >= 0 && b >= 0 && a < w && b < h && inside(a, b);
+  for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+    if (!ins(xx, yy)) continue;
+    const e = !ins(xx - 1, yy) || !ins(xx + 1, yy) || !ins(xx, yy - 1) || (!ins(xx, yy + 1) && yy < h - 1);
+    x.fillStyle = e ? edge : ((extra && extra(xx, yy)) || fill); x.fillRect(xx, yy, 1, 1);
+  }
+  return c;
+}
+const circ = (cx, cy, r) => (x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+const URLS = {};
+function buildSprites() {
+  for (const [k, rows] of Object.entries(ROWS)) URLS[k] = spriteCanvas(rows).toDataURL();
+  URLS.brickD = spriteCanvas(ROWS.brick, { ...PAL, B: '#2c64c8', D: '#0c1c40', p: '#8cc4fc' }).toDataURL();
+  const c1 = circ(10, 12, 6), c2 = circ(19, 8, 8), c3 = circ(29, 11, 7);
+  URLS.cloud = shapeCanvas(40, 20, (x, y) => y <= 18 && (c1(x, y) || c2(x, y) || c3(x, y) || (y >= 11 && x >= 6 && x <= 34)), '#fcfcfc', '#14101e', (x, y) => y >= 16 ? '#bcd4fc' : null).toDataURL();
+  URLS.hill = shapeCanvas(64, 32, (x, y) => ((x - 32) / 31) ** 2 + ((y - 32) / 30) ** 2 <= 1, '#00a844', '#14101e',
+    (x, y) => (((x === 24 || x === 25) && y >= 12 && y <= 17) || ((x === 39 || x === 40) && y >= 17 && y <= 22) || ((x === 31 || x === 32) && y >= 6 && y <= 9)) ? '#005800' : null).toDataURL();
+  const b1 = circ(9, 10, 7), b2 = circ(24, 8, 8), b3 = circ(39, 10, 7);
+  URLS.bush = shapeCanvas(48, 16, (x, y) => b1(x, y) || b2(x, y) || b3(x, y) || (y >= 9 && x >= 4 && x <= 44), '#38c838', '#14101e',
+    (x, y) => ((x === 20 && y === 5) || (x === 21 && y === 5) || (x === 7 && y === 7) || (x === 36 && y === 7)) ? '#b8f818' : null).toDataURL();
+  const root = document.documentElement.style;
+  root.setProperty('--tile-l', `url("${URLS.brick}")`);
+  root.setProperty('--tile-d', `url("${URLS.brickD}")`);
+  $$('img[data-spr]').forEach(i => { i.src = URLS[i.dataset.spr]; });
+}
+const img = (spr, cls = 'px', alt = '') => el('img', { class: cls, src: URLS[spr], alt, draggable: 'false' });
+
+/* =========================================================
+   Sound (square-wave chiptune blips, only after interaction)
+   ========================================================= */
+let actx = null;
+const SFX = {
+  coin: [[988, .07, 0], [1319, .28, .07]],
+  bump: [[150, .09, 0], [110, .08, .05]],
+  pipe: [[523, .08, 0], [392, .08, .09], [262, .08, .18], [196, .16, .27]],
+  select: [[740, .05, 0]],
+  clear: [[523, .11, 0], [659, .11, .11], [784, .11, .22], [1047, .11, .33], [784, .1, .46], [1047, .42, .56]],
+  oops: [[330, .1, 0], [220, .22, .1]]
+};
+function sfx(name) {
+  if (!state.prefs.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t0 = actx.currentTime + .01;
+    if (name === 'jump') {
+      const o = actx.createOscillator(), g = actx.createGain(); o.type = 'square';
+      o.frequency.setValueAtTime(330, t0); o.frequency.exponentialRampToValueAtTime(880, t0 + .16);
+      g.gain.setValueAtTime(.05, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + .2);
+      o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + .22); return;
+    }
+    for (const [f, d, s] of SFX[name] || []) {
+      const o = actx.createOscillator(), g = actx.createGain(); o.type = 'square';
+      o.frequency.setValueAtTime(f, t0 + s); g.gain.setValueAtTime(.05, t0 + s); g.gain.exponentialRampToValueAtTime(.0001, t0 + s + d);
+      o.connect(g).connect(actx.destination); o.start(t0 + s); o.stop(t0 + s + d + .02);
+    }
+  } catch (e) { /* no audio */ }
+}
+
+/* =========================================================
+   Data
+   ========================================================= */
+const TYPES = {
+  edu:     { label: '教育', en: 'SCHOOL',  spr: 'pipe',     sec: '教育背景' },
+  work:    { label: '工作', en: 'WORK',    spr: 'brickBlk', sec: '工作经历' },
+  intern:  { label: '实习', en: 'INTERN',  spr: 'mush',     sec: '实习经历' },
+  project: { label: '项目', en: 'PROJECT', spr: 'qblock',   sec: '项目经历' },
+  award:   { label: '奖项', en: 'AWARD',   spr: 'star',     sec: '荣誉奖项' },
+  other:   { label: '其他', en: 'BONUS',   spr: 'coin',     sec: '其他经历' }
+};
+const ACCENTS = { brick: '#b4441a', pipe: '#1f7a3a', night: '#24408e' };
+
+function sampleProfile() {
+  const S = true;
+  return {
+    basics: { name: '示例玩家', title: '内容运营 / 新媒体', phone: '138-0000-0000', email: 'player@example.com', city: '上海', link: 'portfolio.example.com',
+      summary: '数字媒体专业，做过 3 个账号的内容从 0 到 1，会拍、会剪，也会看数据做复盘。' },
+    skills: [{ name: '剪映', level: 3 }, { name: 'Premiere', level: 3 }, { name: 'After Effects', level: 2 }, { name: 'Photoshop', level: 3 },
+      { name: 'Figma', level: 2 }, { name: 'Excel', level: 2 }, { name: '数据分析', level: 2 }, { name: '英语', level: 2 }, { name: 'Maya', level: 1 }].map(s => ({ ...s, sample: S })),
+    items: [
+      { id: uid(), type: 'edu', org: '示例大学', role: '数字媒体艺术 · 本科', start: '2019-09', end: '2023-06', bullets: ['GPA 3.6 / 4.0，专业前 15%', '主修：视听语言、交互设计、三维动画'], tags: ['数字媒体'], sample: S },
+      { id: uid(), type: 'project', org: '校园美食探店账号', role: '主理人', start: '2021-03', end: '2022-06', bullets: ['从 0 搭建小红书账号，独立完成选题、拍摄与剪辑', '发布 86 篇笔记，粉丝 0 → 1.2 万，单篇最高 9.8 万阅读', '每周复盘点击率与完播率，迭代封面和标题模板'], tags: ['小红书', '短视频', '内容运营'], sample: S },
+      { id: uid(), type: 'award', org: '全国大学生广告艺术大赛', role: '视频类 二等奖', start: '2022-05', end: '2022-05', bullets: ['担任导演与剪辑，完成 30 秒品牌短片'], tags: ['剪辑'], sample: S },
+      { id: uid(), type: 'intern', org: '示例科技有限公司', role: '内容运营实习生', start: '2022-07', end: '2022-12', bullets: ['负责品牌抖音号日常更新，月均产出 20 条短视频', '用 Excel 搭建内容数据看板，按周输出选题复盘', '策划 2 场站内话题活动，累计参与 3,000+ 人次'], tags: ['抖音', '数据分析', '活动策划'], sample: S },
+      { id: uid(), type: 'work', org: '示例文化传媒', role: '新媒体运营', start: '2023-07', end: '', bullets: ['负责 B 站与视频号矩阵 4 个账号，整体粉丝增长 65%', '与设计、商务团队协作，交付 12 个品牌合作项目', '用 After Effects 制作片头包装与动态海报模板，复用率 80%'], tags: ['B站', '视频号', 'After Effects', '商务合作'], sample: S }
+    ]
+  };
+}
+const SAMPLE_JD = {
+  company: '示例公司', position: '内容运营（短视频方向）', sample: true,
+  text: `示例公司 · 内容运营（短视频方向）
+
+岗位职责：
+1. 负责公司短视频账号（抖音 / 小红书 / 视频号）的内容策划与日常运营；
+2. 跟踪内容数据，分析完播率、互动率，持续优化选题与脚本；
+3. 策划线上话题活动，提升用户活跃与粉丝增长；
+4. 与设计、商务团队协作，完成品牌合作内容的交付。
+
+任职要求：
+1. 本科及以上学历，新闻传播、数字媒体等相关专业优先；
+2. 1 年以上新媒体或内容运营经验，有爆款内容案例者优先；
+3. 熟练使用剪映、Premiere 等剪辑工具，会 After Effects 加分；
+4. 具备数据分析能力，熟悉 Excel，会 SQL 者优先；
+5. 了解 AIGC 工具（如 Midjourney、ChatGPT）在内容生产中的应用；
+6. 良好的沟通能力和团队协作精神。`
+};
+// remove everything that still is example data: flagged items and skills, and basics still equal to the example values
+function clearSampleData() {
+  const p = state.profile, sb = sampleProfile().basics;
+  p.items = p.items.filter(i => !i.sample);
+  p.skills = p.skills.filter(s => !s.sample);
+  for (const k of Object.keys(sb)) if (p.basics[k] === sb[k]) p.basics[k] = '';
+}
+const hasSampleData = () => { const p = state.profile, sb = sampleProfile().basics; return p.items.some(i => i.sample) || p.skills.some(s => s.sample) || Object.keys(sb).some(k => p.basics[k] && p.basics[k] === sb[k]); };
+const emptyProfile = () => ({ basics: { name: '', title: '', phone: '', email: '', city: '', link: '', summary: '' }, skills: [], items: [] });
+
+const state = {
+  profile: sampleProfile(),
+  jd: { ...SAMPLE_JD },
+  prefs: { sound: true, tpl: 'classic', accent: 'brick', world: 1 },
+  out: null,            // {html, score, matched, missing, tips, source, at, company, position}
+  stale: false,
+  updatedAt: 0,
+  analysis: null
+};
+
+/* ---------- persistence ---------- */
+const LS = 'rq.v1';
+const persisted = () => ({ v: 1, profile: state.profile, jd: state.jd, prefs: state.prefs, out: state.out, stale: state.stale, updatedAt: state.updatedAt });
+function applySaved(d) {
+  if (!d || typeof d !== 'object') return false;
+  if (d.profile && Array.isArray(d.profile.items)) {
+    const p = d.profile;
+    state.profile = { basics: { ...emptyProfile().basics, ...(p.basics || {}) }, skills: Array.isArray(p.skills) ? p.skills.filter(s => s && s.name) : [],
+      items: p.items.filter(Boolean).map(it => ({ id: it.id || uid(), type: TYPES[it.type] ? it.type : 'other', org: it.org || '', role: it.role || '', start: it.start || '', end: it.end || '',
+        bullets: Array.isArray(it.bullets) ? it.bullets.filter(Boolean).map(String) : [], tags: Array.isArray(it.tags) ? it.tags.filter(Boolean).map(String) : [], sample: !!it.sample })) };
+  }
+  if (d.jd && typeof d.jd.text === 'string') state.jd = { text: d.jd.text, company: d.jd.company || '', position: d.jd.position || '', sample: !!d.jd.sample, manual: d.jd.manual || {} };
+  if (d.prefs) state.prefs = { ...state.prefs, ...d.prefs };
+  state.out = d.out && typeof d.out.html === 'string' ? d.out : null;
+  state.stale = !!d.stale;
+  state.updatedAt = d.updatedAt || 0;
+  state.analysis = null;
+  return true;
+}
+function saveLocal() { try { localStorage.setItem(LS, JSON.stringify(persisted())); } catch (e) { /* storage blocked */ } }
+let cloud = null, cloudBusy = false, cloudAgain = false, cloudTimer = 0;
+async function flushCloud() {
+  if (!cloud) return;
+  if (cloudBusy) { cloudAgain = true; return; }
+  cloudBusy = true;
+  try { await cloud.set(JSON.parse(JSON.stringify(persisted()))); setBadge('CLOUD SAVE'); }
+  catch (e) { setBadge('LOCAL SAVE'); }
+  cloudBusy = false;
+  if (cloudAgain) { cloudAgain = false; flushCloud(); }
+}
+function touch(opts = {}) {
+  state.updatedAt = Date.now();
+  if (opts.content !== false) { if (state.out) state.stale = true; state.analysis = null; }
+  saveLocal();
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(flushCloud, 1500);
+  renderHUD();
+  if (state.prefs.world === 3) renderStale();
+}
+let touchTimer = 0;
+const touchSoon = (opts) => { clearTimeout(touchTimer); touchTimer = setTimeout(() => touch(opts), 400); };
+function setBadge(t) { $('#saveBadge').textContent = t; }
+
+/* ---------- capabilities (only inside a Claude viewer) ---------- */
+let sampleFn = null, dlCap = null;
+const capReady = (async () => {
+  if (!IN_VIEWER) return;
+  const use = n => window.claude.use(n).catch(() => null);
+  const [s, d, db, u] = await Promise.all([use('sample'), use('downloads'), use('db'), use('user')]);
+  sampleFn = s; dlCap = d; capResolved = true;
+  updateAI();
+  if (db && u) {
+    try {
+      const id = await u.id();
+      if (!id) return;
+      cloud = db.doc('data/users/' + id + '/resume-quest');
+      const snap = await cloud.get();
+      if (snap.exists) {
+        const v = snap.data();
+        if (v && (v.updatedAt || 0) > (state.updatedAt || 0)) { applySaved(v); saveLocal(); renderAll(); showWorld(state.prefs.world || 1); toast('已读取你的云端存档'); }
+      }
+      setBadge('CLOUD SAVE');
+      $('#footStore').textContent = '档案自动保存到你的私有云存档，只有你自己能看到';
+    } catch (e) { cloud = null; }
+  }
+})();
+
+/* =========================================================
+   Helpers: dates, text
+   ========================================================= */
+function normYM(s) {
+  const m = String(s || '').match(/(\d{4})\D{0,3}(\d{1,2})?/);
+  if (!m) return '';
+  const mm = Math.min(12, Math.max(1, parseInt(m[2] || '1', 10)));
+  return m[1] + '-' + String(mm).padStart(2, '0');
+}
+const fmtYM = ym => ym ? ym.replace('-', '.') : '';
+function fmtRange(it) {
+  if (it.type === 'award' && (!it.end || it.end === it.start)) return fmtYM(it.start);
+  return `${fmtYM(it.start) || '?'} – ${it.end ? fmtYM(it.end) : '至今'}`;
+}
+const ymNum = ym => { const m = /^(\d{4})-(\d{2})$/.exec(ym || ''); return m ? (+m[1]) * 12 + (+m[2]) - 1 : null; };
+const nowNum = () => { const d = new Date(); return d.getFullYear() * 12 + d.getMonth(); };
+const months = it => { const a = ymNum(it.start); if (a == null) return 0; const b = it.end ? ymNum(it.end) : nowNum(); return Math.max(0, (b ?? a) - a + 1); };
+const sortedItems = () => [...state.profile.items].sort((a, b) => (ymNum(a.start) ?? 9e9) - (ymNum(b.start) ?? 9e9));
+const splitList = s => String(s || '').split(/[,，、;；\n]+/).map(x => x.trim()).filter(Boolean);
+const itemText = it => [it.org, it.role, ...it.bullets, ...it.tags].join(' ');
+function profileText() {
+  const p = state.profile;
+  return [p.basics.title, p.basics.summary, ...p.skills.map(s => s.name), ...p.items.map(itemText)].join('\n');
+}
+
+/* =========================================================
+   Keyword engine (local, offline)
+   ========================================================= */
+const D = (k, c, ...a) => ({ c, a: [c, ...a], k });
+const DICT = [
+  // tools · design / video / 3D
+  D('tool','Photoshop','PS'), D('tool','Illustrator','AI 设计'), D('tool','After Effects','AE'), D('tool','Premiere','PR','Premiere Pro'), D('tool','剪映','CapCut'),
+  D('tool','Final Cut','FCPX'), D('tool','达芬奇','DaVinci'), D('tool','Figma'), D('tool','Sketch'), D('tool','Axure'), D('tool','墨刀'), D('tool','XMind'),
+  D('tool','Blender'), D('tool','C4D','Cinema 4D'), D('tool','Maya'), D('tool','Houdini'), D('tool','3ds Max','3dsmax'), D('tool','ZBrush'), D('tool','Substance'),
+  D('tool','Unity'), D('tool','Unreal','UE4','UE5','虚幻引擎'), D('tool','Midjourney'), D('tool','Stable Diffusion'), D('tool','ChatGPT','GPT'), D('tool','AIGC','生成式AI','AI 工具','AI工具'),
+  D('tool','Excel'), D('tool','PPT','PowerPoint','Keynote'), D('tool','Notion'), D('tool','飞书'), D('tool','Office'),
+  // dev / data
+  D('tool','Python'), D('tool','SQL','MySQL'), D('tool','Java'), D('tool','JavaScript','JS'), D('tool','TypeScript','TS'), D('tool','React'), D('tool','Vue'),
+  D('tool','Node.js','Node'), D('tool','HTML'), D('tool','CSS'), D('tool','Three.js'), D('tool','C++'), D('tool','Golang','Go语言'), D('tool','Git'), D('tool','Linux'),
+  D('tool','Docker'), D('tool','Tableau'), D('tool','Power BI'), D('tool','SPSS'), D('tool','R语言'), D('tool','小程序'), D('tool','iOS'), D('tool','Android'),
+  D('tool','Flutter'), D('tool','Spring'), D('tool','Redis'), D('skill','机器学习'), D('skill','深度学习'), D('skill','大模型','LLM'), D('skill','算法'), D('skill','数据库'),
+  // product / design methods
+  D('skill','需求分析'), D('skill','竞品分析'), D('skill','用户研究','用研','用户调研'), D('skill','用户画像'), D('skill','原型设计','原型'), D('skill','交互设计'),
+  D('skill','视觉设计'), D('skill','UI设计','UI 设计','UI'), D('skill','UX'), D('skill','PRD','需求文档'), D('skill','A/B测试','AB测试','A/B 测试'), D('skill','数据分析','数据驱动'),
+  D('skill','数据可视化'), D('skill','埋点'), D('skill','产品规划'), D('skill','项目管理'), D('skill','敏捷','Scrum'), D('skill','品牌设计'), D('skill','平面设计'),
+  D('skill','动效设计','动效'), D('skill','插画'), D('skill','排版'), D('skill','设计规范','设计系统'), D('skill','三维建模','建模'), D('skill','渲染'), D('skill','动画'),
+  D('skill','特效','VFX'), D('skill','分镜'), D('skill','拍摄','摄影'), D('skill','剪辑','视频剪辑'), D('skill','调色'), D('skill','脚本'), D('skill','文案'), D('skill','策划'),
+  // ops / marketing
+  D('skill','内容运营'), D('skill','用户运营'), D('skill','社群运营','社群'), D('skill','活动策划','活动运营'), D('skill','新媒体'), D('skill','短视频'), D('skill','直播'),
+  D('skill','抖音'), D('skill','小红书'), D('skill','B站','哔哩哔哩','bilibili'), D('skill','视频号'), D('skill','公众号','微信公众号'), D('skill','微博'), D('skill','快手'),
+  D('skill','TikTok'), D('skill','Instagram'), D('skill','YouTube'), D('skill','SEO'), D('skill','SEM'), D('skill','广告投放','信息流','投放'), D('skill','用户增长','粉丝增长','增长'),
+  D('skill','私域'), D('skill','电商'), D('skill','商务合作','品牌合作','BD'), D('skill','KOL','达人'), D('skill','选题'), D('skill','爆款'), D('skill','完播率'), D('skill','互动率'),
+  D('skill','转化率','转化'), D('skill','ROI'), D('skill','GMV'), D('skill','市场调研'), D('skill','市场营销','营销'),
+  // soft
+  D('soft','沟通能力','沟通'), D('soft','团队协作','团队合作','协作'), D('soft','抗压'), D('soft','逻辑思维'), D('soft','学习能力'), D('soft','责任心'), D('soft','领导力','带团队','管理团队'), D('soft','跨部门'),
+  // language / degree / major
+  D('lang','英语','英文','CET-6','CET6','六级','雅思','IELTS','托福','TOEFL'), D('lang','日语','JLPT'), D('lang','韩语','TOPIK'), D('lang','粤语'),
+  D('deg','本科','学士'), D('deg','硕士','研究生'), D('deg','博士'),
+  D('major','数字媒体'), D('major','新闻传播','传播学','新闻学'), D('major','计算机','计算机科学'), D('major','设计学','艺术设计'), D('major','动画专业'), D('major','市场营销专业')
+];
+// English JDs: map common English phrasing onto the same canon terms
+const EN_ALIAS = {
+  '英语': ['English'], '日语': ['Japanese'], '韩语': ['Korean'], '沟通能力': ['communication'], '团队协作': ['teamwork', 'collaboration', 'collaborate'],
+  '跨部门': ['cross-functional'], '领导力': ['leadership'], '数据分析': ['data analysis', 'analytics', 'data-driven'], '数据可视化': ['data visualization'],
+  '新媒体': ['social media'], '短视频': ['short video', 'short-form video', 'short-form'], '剪辑': ['video editing'], '拍摄': ['filming', 'videography', 'photography'],
+  '文案': ['copywriting'], '用户研究': ['user research', 'UX research'], '交互设计': ['interaction design'], '视觉设计': ['visual design'], '产品规划': ['roadmap'],
+  '项目管理': ['project management'], '用户增长': ['growth'], '品牌设计': ['branding', 'brand design'], '平面设计': ['graphic design'],
+  '动效设计': ['motion design', 'motion graphics'], '插画': ['illustration'], '三维建模': ['3D modeling', '3D modelling'], '动画': ['animation'],
+  '原型设计': ['prototyping', 'prototype'], 'A/B测试': ['A/B testing'], '需求分析': ['requirements analysis'], '竞品分析': ['competitive analysis'],
+  '市场调研': ['market research'], '市场营销': ['marketing'], '内容运营': ['content operations', 'content strategy'], '社群运营': ['community management'],
+  '广告投放': ['paid media', 'paid social'], '直播': ['livestream', 'live streaming'], '电商': ['e-commerce', 'ecommerce'], '本科': ["Bachelor's", 'Bachelor'],
+  '硕士': ["Master's", 'MBA'], '博士': ['PhD'], '计算机': ['Computer Science'], '机器学习': ['machine learning'], '算法': ['algorithm', 'algorithms']
+};
+for (const d of DICT) if (EN_ALIAS[d.c]) d.a.push(...EN_ALIAS[d.c]);
+DICT.push(D('skill', '内容营销', 'content marketing'), D('tool', 'Jira'), D('tool', 'Confluence'), D('tool', 'Slack'), D('tool', 'Canva'), D('tool', 'Lightroom'),
+  D('tool', 'InDesign'), D('tool', 'Salesforce'), D('tool', 'HubSpot'), D('tool', 'Google Analytics', 'GA4'), D('tool', 'Shopify'), D('tool', 'WordPress'),
+  D('tool', 'Webflow'), D('tool', 'Framer'), D('tool', 'Mailchimp'), D('skill', 'LinkedIn'), D('skill', 'Facebook'), D('skill', 'Pinterest'), D('skill', 'CRM'));
+const CAT_W = { tool: 1, skill: 1, phrase: 0.9, eng: 0.8, soft: 0.5, lang: 0.8, deg: 0.8, major: 0.6 };
+const EN_STOP = new Set('and or the of to in for with on at by an a as is are be we you our your etc eg ie job app web com www http https cn jd hr pc ok usa uk us eu ceo cto cfo coo vp hq ltd inc llc co ai'.split(' '));
+const CN_STOP = /^(相关|一定|良好|较强|优秀|扎实|丰富|较好|基本|基础|以上|能够|可以|熟练|使用|工作|经验|能力|行业|领域|岗位|公司|业务|产品|内容|以及|其他|各类|常用|主流)$/;
+
+const isAscii = s => /^[\x00-\x7f]+$/.test(s);
+function termRe(alias) { return isAscii(alias) ? new RegExp('(?<![A-Za-z0-9])' + reEsc(alias).replace(/\\ /g, '\\s?').replace(/ /g, '\\s?') + '(?![A-Za-z0-9])', 'i') : null; }
+const RE_CACHE = new Map();
+function hasTerm(text, alias) {
+  if (!alias) return false;
+  if (!isAscii(alias)) return text.includes(alias);
+  let r = RE_CACHE.get(alias); if (!r) { r = termRe(alias); RE_CACHE.set(alias, r); }
+  return r.test(text);
+}
+const hasAny = (text, aliases) => aliases.some(a => hasTerm(text, a));
+
+function jdLines(text) {
+  const lines = String(text || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+  let sec = 'top';
+  return lines.map(raw => {
+    const short = raw.replace(/[：:]\s*$/, '');
+    let header = false;
+    const en = /^[\x00-\x7f’]+$/.test(raw);
+    const headerish = raw.length <= (en ? 40 : 18) && !/^\d/.test(raw) && (/[：:]$/.test(raw) || (en ? raw.split(/\s+/).length <= 5 : raw.length <= 8) || /^[【\[#]/.test(raw));
+    if (headerish && /(职责|工作内容|岗位描述|职位描述|你将|你要做|responsibilit|duties|what you.ll do|the role|your role|day to day)/i.test(short)) { sec = 'duty'; header = true; }
+    else if (headerish && /(要求|任职资格|职位资格|我们希望|加分|优先条件|你需要|需要你|requirement|qualification|looking for|who you are|nice to have|preferred|bonus|skills|you have|you bring)/i.test(short)) { sec = 'req'; header = true; }
+    return { raw, sec, header };
+  });
+}
+function detectTitle(text) {
+  const first = String(text || '').split('\n').map(s => s.trim()).find(Boolean) || '';
+  if (!first || first.length > 40) return {};
+  // "公司 · 岗位" / "Acme - Designer"; a hyphen needs spaces around it so "Front-end Engineer" stays whole
+  const m = first.match(/^(.+?)(?:\s*[·|｜—–]\s*|\s+-\s+)(.+)$/);
+  if (m) return { company: m[1].trim(), position: m[2].trim() };
+  const m2 = first.match(/(?:招聘|岗位|职位)[:：]\s*(.+)$/);
+  return m2 ? { position: m2[1].trim() } : {};
+}
+
+function analyze() {
+  const jd = state.jd.text || '';
+  const lines = jdLines(jd);
+  const ptext = profileText();
+  const found = new Map(); // canon -> kw
+  const add = (canon, aliases, cat, line, shown) => {
+    const key = canon.toLowerCase();
+    let k = found.get(key);
+    // show the wording the JD actually used ("粉丝增长", "English"), match on every alias
+    if (!k) { k = { c: shown || canon, a: aliases, k: cat, w: 0, n: 0, bonus: true, lines: new Set() }; found.set(key, k); }
+    const lw = (line.sec === 'req' ? 1.2 : 1) * (line.bonus ? 0.5 : 1);
+    k.w = Math.max(k.w, lw * (CAT_W[cat] || 1));
+    k.n++; if (!line.bonus) k.bonus = false; k.lines.add(line.raw);
+  };
+  const coveredByDict = (s) => DICT.some(d => d.a.some(a => a.length >= 2 && (s === a || (!isAscii(a) && s.includes(a)) || (isAscii(a) && hasTerm(s, a)))));
+  const userTerms = [...state.profile.skills.map(s => s.name), ...state.profile.items.flatMap(i => i.tags)].filter(t => t && t.length >= 2);
+  for (const line of lines) {
+    if (line.header) continue;
+    // weigh clause by clause, so "本科及以上，相关专业优先" only discounts the second half
+    for (const part of line.raw.split(/[，,；;。]/)) {
+      const t = part.trim(); if (!t) continue;
+      const cl = { raw: line.raw, sec: line.sec, bonus: /(优先|加分|更佳|更好|preferred|a plus|nice to have|bonus|ideally)/i.test(t) };
+      let rest = t;
+      for (const d of DICT) if (hasAny(t, d.a)) {
+        const hit = d.a.find(a => hasTerm(t, a));
+        add(d.c, d.a, d.k, cl, isAscii(hit) && !isAscii(d.c) ? hit : d.c);
+        for (const a of d.a) if (isAscii(a)) rest = rest.replace(new RegExp(termRe(a).source, 'gi'), ' ');
+      }
+      for (const u of userTerms) if (hasTerm(t, u) && !coveredByDict(u)) add(u, [u], 'skill', cl);
+      // English tool names / acronyms not in the dictionary. Plain words ("Strong", "years") are not keywords;
+      // only things shaped like product names count: SQL, TikTok, Node.js, C++, GA4.
+      for (const m of rest.matchAll(/[A-Za-z][A-Za-z0-9+#.\-]*[A-Za-z0-9+#]/g)) {
+        const w = m[0].replace(/\.$/, '');
+        const toolish = /[A-Z].*[A-Z]/.test(w) || /[0-9+#]|\.[a-z]/i.test(w.slice(1));
+        if (w.length < 2 || w.length > 24 || !toolish || EN_STOP.has(w.toLowerCase()) || coveredByDict(w) || userTerms.some(u => u.toLowerCase() === w.toLowerCase())) continue;
+        add(w, [w], 'eng', cl);
+      }
+      // 中文句式：熟悉 / 精通 / 掌握 … 经验/能力
+      for (const m of t.matchAll(/(?:熟悉|精通|掌握|熟练使用|熟练掌握|熟练运用|擅长|了解|具备|具有|拥有)([^（）()！!？?]{2,26})/g)) {
+        const ph = m[1].replace(/(者优先|优先|加分|更佳|经验|能力|的应用|应用|等.*)$/, '');
+        for (let piece of ph.split(/[、\/和及与或]|以及/)) {
+          piece = piece.replace(/^(使用|运用|常用|主流|基本的|一定的|各类|相关)/, '').replace(/(工具|软件|技能|方法|的)$/, '').trim();
+          if (piece.length < 2 || piece.length > 10 || CN_STOP.test(piece) || coveredByDict(piece) || /^[\x00-\x7f\s]+$/.test(piece)) continue;
+          add(piece, [piece], 'phrase', cl);
+        }
+      }
+    }
+  }
+  const kws = [...found.values()].map(k => {
+    const w = +(k.w + Math.min(0.6, 0.2 * (k.n - 1))).toFixed(2);
+    return { c: k.c, a: k.a, k: k.k, w, bonus: k.bonus, hit: hasAny(ptext, k.a), lines: [...k.lines] };
+  });
+  kws.sort((x, y) => (y.hit - x.hit) || (y.w - x.w));
+  const total = kws.reduce((s, k) => s + k.w, 0);
+  const got = kws.reduce((s, k) => s + (k.hit ? k.w : 0), 0);
+  const score = total ? Math.round(got / total * 100) : 0;
+
+  // requirement table
+  let reqLines = lines.filter(l => l.sec === 'req' && !l.header && l.raw.length > 4);
+  if (!reqLines.length) reqLines = lines.filter(l => !l.header && /^(\d+[.、)）]|[-•·*])/.test(l.raw));
+  const items = state.profile.items;
+  const reqs = reqLines.slice(0, 12).map(l => {
+    const inLine = kws.filter(k => hasAny(l.raw, k.a));
+    const hits = inLine.filter(k => k.hit);
+    const src = items.filter(it => hits.some(k => hasAny(itemText(it), k.a))).map(it => it.role || it.org);
+    const fromSkills = hits.some(k => state.profile.skills.some(s => hasAny(s.name, k.a)));
+    let status;
+    if (inLine.length) status = hits.length === inLine.length ? 'hit' : hits.length ? 'part' : 'miss';
+    else status = bigramOverlap(l.raw, ptext) >= 0.35 ? 'part' : 'unknown';
+    return { text: l.raw.replace(/^(\d+[.、)）]|[-•·*])\s*/, ''), status, src: [...new Set(src)].slice(0, 3), fromSkills, kws: inLine.map(k => k.c), missKws: inLine.filter(k => !k.hit).map(k => k.c) };
+  });
+  return { kws, score, reqs, at: Date.now() };
+}
+function bigramOverlap(a, b) {
+  const chars = a.replace(/[^\u4e00-\u9fa5]/g, '');
+  if (chars.length < 4) return 0;
+  let n = 0, hit = 0;
+  for (let i = 0; i < chars.length - 1; i++) { const bg = chars.slice(i, i + 2); if (/(以上|相关|能力|经验|优先|良好|具备|熟悉)/.test(bg)) continue; n++; if (b.includes(bg)) hit++; }
+  return n ? hit / n : 0;
+}
+
+/* =========================================================
+   Resume builders
+   ========================================================= */
+function highlighter(terms) {
+  const list = [...new Set(terms.filter(t => t && t.length >= 2))].sort((a, b) => b.length - a.length);
+  if (!list.length) return s => esc(s);
+  const re = new RegExp(list.map(t => isAscii(t) ? '(?<![A-Za-z0-9])' + reEsc(t) + '(?![A-Za-z0-9])' : reEsc(t)).join('|'), 'gi');
+  return s => { let out = '', last = 0; const str = String(s); for (const m of str.matchAll(re)) { out += esc(str.slice(last, m.index)) + '<b>' + esc(m[0]) + '</b>'; last = m.index + m[0].length; } return out + esc(str.slice(last)); };
+}
+function contactsOf(b) { return [b.phone, b.email, b.city, b.link].filter(Boolean); }
+
+function buildLocal() {
+  const a = state.analysis = analyze();
+  const hitK = a.kws.filter(k => k.hit);
+  const p = state.profile, b = p.basics;
+  const rel = it => { const t = itemText(it); return hitK.reduce((s, k) => s + (hasAny(t, k.a) ? k.w : 0), 0); };
+  const workMonths = p.items.filter(i => i.type === 'work' || i.type === 'intern').reduce((s, i) => s + months(i), 0);
+  const order = workMonths >= 24 ? ['work', 'intern', 'project', 'edu', 'award', 'other'] : ['edu', 'work', 'intern', 'project', 'award', 'other'];
+  const byEnd = (x, y) => ((y.end ? ymNum(y.end) : 9e9) - (x.end ? ymNum(x.end) : 9e9)) || ((ymNum(y.start) || 0) - (ymNum(x.start) || 0));
+  const sections = [];
+  const noJD = !a.kws.length;
+  for (const type of order) {
+    let list = p.items.filter(i => i.type === type);
+    if (!list.length) continue;
+    // without a JD there is nothing to filter by: keep everything, newest first
+    if (noJD) list = [...list].sort(byEnd).slice(0, type === 'edu' ? 99 : 6);
+    else if (type !== 'edu') {
+      const scored = list.map(i => ({ i, s: rel(i) }));
+      let keep = scored.filter(x => x.s > 0).sort((x, y) => y.s - x.s).slice(0, 4).map(x => x.i);
+      if (!keep.length) keep = [...list].sort(byEnd).slice(0, 1);
+      list = keep;
+    }
+    list = [...list].sort(byEnd);
+    sections.push({ type, title: TYPES[type].sec, items: list.map(it => {
+      const bl = it.bullets.map((t, idx) => ({ t, idx, s: hitK.reduce((s, k) => s + (hasAny(t, k.a) ? k.w : 0), 0) }))
+        .sort((x, y) => (y.s - x.s) || (x.idx - y.idx)).slice(0, 5).map(x => x.t);
+      return { head: it.org, sub: it.role, time: fmtRange(it), bullets: bl };
+    }) });
+  }
+  const skills = p.skills.map(s => ({ name: s.name, hit: hitK.some(k => hasAny(s.name, k.a)) })).sort((x, y) => y.hit - x.hit);
+  const topHits = hitK.filter(k => k.k !== 'deg' && k.k !== 'major').slice(0, 5).map(k => k.c);
+  const summary = [b.summary, topHits.length ? `与本岗位契合：${topHits.join('、')}。` : ''].filter(Boolean).join(' ');
+  const missK = a.kws.filter(k => !k.hit);
+  return {
+    model: { name: b.name || '你的名字', title: state.jd.position || b.title, contacts: contactsOf(b), summary, sections, skills },
+    terms: hitK.flatMap(k => k.a),
+    score: noJD ? null : a.score, matched: hitK.map(k => k.c), missing: missK.map(k => (k.bonus ? k.c + '（优先）' : k.c)),
+    tips: noJD ? ['还没有 JD，所以这份简历按时间列出了全部经历。去 1-2 贴一份 JD 再生成，会按岗位挑选、排序和加粗关键词。'] : localTips(missK, sections), source: 'local'
+  };
+}
+function localTips(miss, sections) {
+  const tips = [];
+  const tools = miss.filter(k => k.k === 'tool' || k.k === 'eng' || k.k === 'skill' || k.k === 'phrase').slice(0, 3).map(k => k.c);
+  if (tools.length) tips.push(`JD 提到了「${tools.join('、')}」，档案里还没有。用过的话，加进道具栏或对应经历的标签；没用过就别写，面试前补一补基础。`);
+  const soft = miss.filter(k => k.k === 'soft').map(k => k.c);
+  if (soft.length) tips.push(`「${soft.join('、')}」这类软技能，别直接写“能力强”，在某条要点里讲一件具体协作或推进的事更有说服力。`);
+  const deg = miss.filter(k => k.k === 'deg').map(k => k.c);
+  if (deg.length) tips.push(`JD 写了「${deg.join('、')}」，这是硬门槛，简历补不了，投之前确认一下。`);
+  const noNum = sections.filter(s => s.type !== 'edu').flatMap(s => s.items.flatMap(i => i.bullets)).filter(t => !/\d/.test(t)).length;
+  if (noNum) tips.push(`有 ${noNum} 条要点没有数字。补上规模或结果（多少人、增长多少、省了多少时间）会更有力。`);
+  if (!tips.length) tips.push('关键词覆盖得不错。可以用 Claude 精修一下措辞，再按公司调性微调个人优势。');
+  return tips.slice(0, 4);
+}
+function renderResumeHTML(model, terms) {
+  const hl = highlighter(terms);
+  const parts = [];
+  parts.push(`<header><h1>${esc(model.name)}</h1>${model.title ? `<div class="p-title">求职意向：${esc(model.title)}</div>` : ''}${model.contacts.length ? `<div class="p-contact">${model.contacts.map(c => `<span>${esc(c)}</span>`).join('')}</div>` : ''}</header>`);
+  if (model.summary) parts.push(`<section><h2>个人优势</h2><p>${hl(model.summary)}</p></section>`);
+  for (const s of model.sections) {
+    if (!s.items.length) continue;
+    parts.push(`<section><h2>${esc(s.title)}</h2>${s.items.map(it => `<div class="p-item"><div class="p-row"><strong>${esc(it.head)}</strong>${it.sub ? `<span class="p-sub">${esc(it.sub)}</span>` : ''}${it.time ? `<time>${esc(it.time)}</time>` : ''}</div>${it.bullets.length ? `<ul>${it.bullets.map(t => `<li>${hl(t)}</li>`).join('')}</ul>` : ''}</div>`).join('')}</section>`);
+  }
+  if (model.skills.length) parts.push(`<section><h2>专业技能</h2><p class="p-skills">${model.skills.map(s => s.hit ? `<b>${esc(s.name)}</b>` : esc(s.name)).join(' · ')}</p></section>`);
+  return parts.join('');
+}
+function commitOut(r, opts = {}) {
+  state.out = { html: renderResumeHTML(r.model, r.terms), score: r.score, matched: r.matched, missing: r.missing, tips: r.tips, source: r.source,
+    at: Date.now(), company: state.jd.company, position: state.jd.position };
+  state.stale = false;
+  // an automatic (quiet) build is not a user edit: keep the save timestamp so a newer cloud save still wins
+  if (opts.quiet) saveLocal(); else touch({ content: false });
+  renderOut();
+  if (!opts.quiet) celebrate(r.score);
+}
+function generateLocal(quiet) {
+  if (!state.profile.items.length) { state.out = null; renderOut(); if (!quiet) { toast('档案还是空的，先去 1-1 添加经历'); sfx('oops'); } return; }
+  commitOut(buildLocal(), { quiet }); if (!quiet) sfx('clear');
+}
+
+/* ---------- Claude ---------- */
+function profileForAI() {
+  const p = state.profile, lv = ['', '了解', '熟练', '精通'];
+  return { basics: p.basics, skills: p.skills.map(s => s.name + (s.level ? `（${lv[s.level]}）` : '')),
+    items: p.items.map(it => ({ id: it.id, type: it.type, typeLabel: TYPES[it.type].label, org: it.org, role: it.role, time: fmtRange(it), bullets: it.bullets, tags: it.tags })) };
+}
+function aiPrompt() {
+  return `你是资深招聘顾问和简历写作专家。请根据【我的档案】为【目标岗位】写一份中文专属简历。
+
+硬性规则：
+1. 只能使用档案里真实存在的经历、时间、数字和技能。绝不编造公司、项目、数据或成果；档案里没有的数字不要补。
+2. 可以改写措辞（动词开头、结果导向、STAR），可以合并或拆分要点、调整顺序，删掉和岗位无关的条目。
+3. 在真实的前提下，自然地使用 JD 里的关键词。
+4. 每段经历 2 到 5 条要点，每条不超过 60 个汉字。个人优势不超过 3 句。
+5. 工作和实习经验合计少于 2 年时，教育背景放在最前面。
+6. time 字段沿用档案里的时间写法。
+
+只回复一个 JSON 对象，格式：
+{"title":"求职意向","summary":"个人优势","sections":[{"type":"edu|work|intern|project|award|other","title":"模块标题","items":[{"sourceId":"档案条目 id","head":"机构或学校","sub":"职位或专业","time":"2023.07 – 至今","bullets":["要点"]}]}],"skills":["技能"],"matched":["JD 里的关键词，且档案能支撑"],"missing":["JD 要求但档案没有体现的"],"score":0到100的整数,"tips":["给求职者的补强建议，最多 4 条，每条一句"]}
+
+【目标岗位】
+公司：${state.jd.company || '未填写'}
+岗位：${state.jd.position || '未填写'}
+JD：
+${(state.jd.text || '').slice(0, 8000)}
+
+【我的档案】
+${JSON.stringify(profileForAI())}`;
+}
+const strArr = v => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
+function normalizeAI(o) {
+  if (!o || typeof o !== 'object' || !Array.isArray(o.sections)) throw { code: 'invalid_json' };
+  const b = state.profile.basics;
+  const matched = strArr(o.matched);
+  const local = analyze();
+  const terms = [...matched, ...local.kws.filter(k => k.hit).flatMap(k => k.a)];
+  const skills = strArr(o.skills).map(n => ({ name: n, hit: terms.some(t => hasTerm(n, t) || hasTerm(t, n)) }));
+  const sections = o.sections.filter(s => s && Array.isArray(s.items)).map(s => ({
+    type: s.type, title: String(s.title || (TYPES[s.type] && TYPES[s.type].sec) || '经历'),
+    items: s.items.filter(Boolean).map(it => ({ head: String(it.head || ''), sub: String(it.sub || ''), time: String(it.time || ''), bullets: strArr(it.bullets).slice(0, 6) }))
+  }));
+  const score = Number.isFinite(+o.score) ? Math.max(0, Math.min(100, Math.round(+o.score))) : local.score;
+  state.analysis = local;
+  return { model: { name: b.name || '你的名字', title: String(o.title || state.jd.position || b.title || ''), contacts: contactsOf(b), summary: String(o.summary || ''), sections, skills },
+    terms, score, matched, missing: strArr(o.missing), tips: strArr(o.tips).slice(0, 4), source: 'ai' };
+}
+let aiCtl = null;
+async function genAI() {
+  if (!sampleFn) return;
+  if (!state.profile.items.length) { toast('档案还是空的，先去 1-1 添加经历'); return; }
+  if (!(state.jd.text || '').trim()) { toast('先在 1-2 贴一份 JD'); return; }
+  aiCtl = new AbortController();
+  setAI('run', 'Claude 正在读 JD 和你的档案，通常要 20–60 秒…');
+  try {
+    const out = await sampleFn.json(aiPrompt(), { signal: aiCtl.signal, cache: false });
+    commitOut(normalizeAI(out));
+    sfx('clear');
+    setAI('', '这一版由 Claude 精修。只用了你档案里的信息，还是建议通读一遍。');
+  } catch (e) {
+    const c = e && e.code;
+    if (c === 'cancelled') setAI('', '已停止，保留之前的版本。');
+    else if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(c)) { sampleFn = null; updateAI(); setAI('', '没有授权使用 Claude，已保留本地版本。'); }
+    else if (c === 'rate_limited') setAI('', '调用太频繁了，过一会儿再点一次。');
+    else if (c === 'invalid_json') setAI('', 'Claude 返回的格式不对，再点一次试试。');
+    else if (c === 'session_expired') setAI('', '登录过期了，重新登录 Claude 后再试。');
+    else setAI('', 'Claude 暂时没响应，已保留之前的版本，可以稍后再试。');
+    sfx('oops');
+  } finally { aiCtl = null; $('#aiStop').hidden = true; $('#genAI').disabled = !sampleFn; }
+}
+function setAI(mode, text) {
+  const s = $('#aiState'); s.className = 'ai-state' + (mode ? ' ' + mode : ''); s.innerHTML = '';
+  if (mode === 'run') { s.append(img('hero1')); $('#aiStop').hidden = false; $('#genAI').disabled = true; }
+  if (text) s.append(el('span', { text }));
+}
+let capResolved = !IN_VIEWER;
+function updateAI() {
+  if (aiCtl) return;
+  $('#genAI').disabled = !sampleFn;
+  $('#importBtn').title = sampleFn ? '' : '需要在 claude.ai 中打开';
+  if (sampleFn) setAI('', '');
+  else if (!capResolved) setAI('', '正在连接 Claude…');
+  else setAI('', IN_VIEWER ? '这个页面没有拿到使用 Claude 的权限。本地生成不受影响。' : 'Claude 精修和导入旧简历要在 claude.ai 里打开本页才能用。本地生成不受影响。');
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+function pad2(n) { return String(n).padStart(2, '0'); }
+let lastCoins = -1;
+function renderHUD() {
+  const p = state.profile;
+  $('#hudName').textContent = p.basics.name || 'PLAYER 1';
+  const coins = p.items.reduce((s, i) => s + i.bullets.length, 0);
+  $('#hudCoins').textContent = pad2(coins);
+  if (lastCoins >= 0 && coins > lastCoins) { const w = $('#hudCoinsWrap'); w.classList.remove('pop'); void w.offsetWidth; w.classList.add('pop'); }
+  lastCoins = coins;
+  $('#hudItems').textContent = pad2(p.skills.length);
+  $('#hudWorld').textContent = '1-' + state.prefs.world;
+  const sc = state.out ? state.out.score : state.analysis ? state.analysis.score : null;
+  $('#hudMatch').textContent = sc == null ? '--' : sc + '%';
+  $('#sndBtn').textContent = state.prefs.sound ? 'SOUND ON' : 'SOUND OFF';
+  $('#sndBtn').setAttribute('aria-pressed', String(state.prefs.sound));
+}
+
+/* ---------- world 1: level ---------- */
+const hero = { x: 40, y: 0, dir: 0, face: 1, jumpT: -1, apex: false, onApex: null, frame: 0, ft: 0, raf: 0, target: null, onArrive: null };
+let heroEl = null;
+function renderLevel() {
+  const track = $('#track');
+  track.innerHTML = '';
+  const items = sortedItems();
+  const start = el('div', { class: 'col slim' },
+    el('div', { class: 'startpost' }, el('div', { class: 'plank', text: 'START ▶' }), el('div', { class: 'post' })),
+    el('div', { class: 'year', text: items[0] && items[0].start ? items[0].start.slice(0, 4) : '' }));
+  track.append(start);
+  let prevYear = items[0] && items[0].start ? items[0].start.slice(0, 4) : '';
+  items.forEach(it => {
+    const T = TYPES[it.type];
+    const col = el('div', { class: 'col', 'data-id': it.id });
+    const blk = el('button', { class: 'blk', 'aria-label': `编辑：${it.role || it.org}`, onclick: () => approach(col, () => editItem(it.id)) }, img(T.spr));
+    const sign = el('button', { class: 'sign', onclick: () => editItem(it.id) },
+      el('span', { class: 'sign-type' }, T.en, el('span', { class: 'cn', text: T.label }), it.sample ? el('em', { class: 'tag-sample', text: '示例' }) : null),
+      el('span', { class: 'sign-role', text: it.role || '（未填职位）' }),
+      el('span', { class: 'sign-org', text: it.org || '' }));
+    const vine = el('div', { class: 'vine' },
+      it.bullets.map(t => el('div', { class: 'leaf' }, el('span', { class: 'leaf-t', text: t, title: t }))),
+      it.tags.length ? el('div', { class: 'tags' }, it.tags.map(t => el('span', { class: 'tagc' }, img('coin'), t))) : null);
+    col.append(blk, el('div', { class: 'stalk' }), sign, vine, el('div', { class: 'stem' }), el('div', { class: 'date', text: fmtRange(it) }));
+    const y = it.start ? it.start.slice(0, 4) : '';
+    if (y && y !== prevYear) { col.append(el('div', { class: 'year', text: y })); prevYear = y; }
+    track.append(col);
+  });
+  const plus = el('div', { class: 'col slim', 'data-act': 'add' });
+  plus.append(el('button', { class: 'blk', 'aria-label': '新增经历', onclick: () => approach(plus, () => editItem(null)) }, img('plus')),
+    el('div', { class: 'stalk' }), el('button', { class: 'sign', onclick: () => editItem(null) }, el('span', { class: 'sign-type', text: 'NEW' }), el('span', { class: 'sign-role', text: '新增经历' })),
+    el('div', { class: 'stem' }));
+  track.append(plus);
+  const flag = el('div', { class: 'col slim', 'data-act': 'goal' });
+  flag.append(el('div', { class: 'flagpole' }, el('div', { class: 'pole' }), el('div', { class: 'ball' }), el('div', { class: 'flag' }), el('div', { class: 'base' }),
+    el('div', { class: 'lbl', text: '终点：去投 JD' }), el('button', { 'aria-label': '去 1-2 投递 JD', onclick: () => approach(flag, () => go(2)) })));
+  track.append(flag);
+  track.append(el('div', { class: 'ground' }));
+  heroEl = img('hero0', 'hero'); track.append(heroEl);
+  requestAnimationFrame(() => {
+    const W = track.scrollWidth;
+    for (let x = 80, i = 0; x < W; x += 360 + (i % 3) * 70, i++) {
+      const c = img('cloud', 'deco cloud'); c.style.left = x + 'px'; c.style.top = (18 + (i % 3) * 26) + 'px'; track.prepend(c);
+    }
+    for (let x = 220, i = 0; x < W - 100; x += 640 + (i % 2) * 180, i++) {
+      const h = img(i % 2 ? 'bush' : 'hill', 'deco ' + (i % 2 ? 'bush' : 'hill')); h.style.left = x + 'px'; track.prepend(h);
+    }
+    hero.x = Math.min(hero.x, W - 60); placeHero();
+  });
+  renderSampleBar();
+}
+function renderSampleBar() {
+  const n = state.profile.items.filter(i => i.sample).length;
+  $('#sampleBar').hidden = !hasSampleData();
+  $('#sampleText').innerHTML = n ? `现在是<b>示例档案</b>，还有 ${n} 条带「示例」角标的经历。把机构和职位改成你自己的，角标就会消失；或者一键清空。`
+    : '角色卡或道具栏里还留着<b>示例数据</b>。';
+}
+function placeHero() { if (heroEl) heroEl.style.transform = `translate(${hero.x}px, ${-hero.y}px) scaleX(${hero.face})`; }
+function heroLoop(t) {
+  if (!heroEl || !heroEl.isConnected) { hero.raf = 0; return; }
+  let moving = false;
+  const W = $('#track').scrollWidth;
+  if (hero.target != null) {
+    const d = hero.target - hero.x, step = Math.max(6, Math.abs(d) / 16);
+    if (Math.abs(d) <= step) { hero.x = hero.target; hero.target = null; const cb = hero.onArrive; hero.onArrive = null; cb && cb(); }
+    else { hero.x += Math.sign(d) * step; hero.face = Math.sign(d); moving = true; }
+  } else if (hero.dir) {
+    hero.x = Math.max(0, Math.min(W - 52, hero.x + hero.dir * 5)); hero.face = hero.dir; moving = true; follow();
+  }
+  let jumping = false;
+  if (hero.jumpT >= 0) {
+    const p = (t - hero.jumpT) / 450;
+    if (p >= 1) { hero.jumpT = -1; hero.y = 0; }
+    else { const q = Math.max(0, p); hero.y = 4 * 70 * q * (1 - q); jumping = true; if (!hero.apex && q >= .45) { hero.apex = true; const f = hero.onApex; hero.onApex = null; f && f(); } }
+  }
+  if (moving && t - hero.ft > 110) { hero.frame ^= 1; hero.ft = t; }
+  heroEl.src = jumping ? URLS.heroJ : moving && hero.frame ? URLS.hero1 : URLS.hero0;
+  placeHero();
+  hero.raf = (moving || jumping || hero.dir || hero.target != null) ? requestAnimationFrame(heroLoop) : 0;
+}
+const kick = () => { if (!hero.raf) hero.raf = requestAnimationFrame(heroLoop); };
+function follow() {
+  const L = $('#level'), left = hero.x - L.scrollLeft;
+  if (left < 80) L.scrollLeft = hero.x - 80; else if (left > L.clientWidth - 140) L.scrollLeft = hero.x - L.clientWidth + 140;
+}
+function jump(onApex) {
+  if (hero.jumpT >= 0) return;
+  hero.jumpT = performance.now(); hero.apex = false; hero.onApex = onApex || null; sfx('jump'); kick();
+}
+function bumpFx(col) {
+  const b = col.querySelector('.blk'); if (!b) return;
+  b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+  const c = img('coin', 'coin-fx'); b.append(c); setTimeout(() => c.remove(), 650);
+  sfx('coin');
+}
+function approach(col, action) {
+  if (RM.matches) { action(); return; }
+  const L = $('#level');
+  const target = col.offsetLeft;
+  const vis = target - L.scrollLeft;
+  if (vis < 40 || vis > L.clientWidth - 120) L.scrollTo({ left: Math.max(0, target - L.clientWidth / 3), behavior: 'smooth' });
+  hero.dir = 0; hero.target = target;
+  hero.onArrive = () => jump(() => { bumpFx(col); setTimeout(action, 260); });
+  kick();
+}
+function nearestCol() {
+  let best = null, bd = 90;
+  $$('#track .col').forEach(c => { if (!c.querySelector('.blk') && c.dataset.act !== 'goal') return; const d = Math.abs(c.offsetLeft - hero.x); if (d < bd) { bd = d; best = c; } });
+  return best;
+}
+function colAction(col) {
+  if (col.dataset.id) editItem(col.dataset.id); else if (col.dataset.act === 'add') editItem(null); else if (col.dataset.act === 'goal') go(2);
+}
+
+/* ---------- world 1: panels ---------- */
+const BASIC_KEYS = ['name', 'title', 'phone', 'email', 'city', 'link', 'summary'];
+function renderBasics() { BASIC_KEYS.forEach(k => { const i = $('#b_' + k); if (document.activeElement !== i) i.value = state.profile.basics[k] || ''; }); }
+function renderInventory() {
+  const g = $('#invGrid'); g.innerHTML = '';
+  if (!state.profile.skills.length) { g.append(el('p', { class: 'inv-empty', text: '背包是空的。把会用的工具、方法、语言放进来，生成简历时会按 JD 排序。' })); return; }
+  state.profile.skills.forEach((s, i) => {
+    const lv = s.level || 2;
+    g.append(el('div', { class: 'slot' },
+      el('span', { class: 'slot-name', text: s.name, title: s.name }),
+      el('button', { class: 'slot-stars', 'aria-label': `${s.name} 熟练度 ${lv}/3，点击切换`, onclick: () => { s.level = lv % 3 + 1; sfx('select'); touch(); renderInventory(); } },
+        [1, 2, 3].map(n => img(n <= lv ? 'star' : 'starOff'))),
+      el('button', { class: 'slot-x', 'aria-label': '移除 ' + s.name, onclick: () => { state.profile.skills.splice(i, 1); touch(); renderInventory(); renderSampleBar(); }, text: '×' })));
+  });
+}
+
+/* ---------- modal ---------- */
+let modalReturn = null;
+function openModal(title, body, foot) {
+  modalReturn = document.activeElement;
+  $('#mTitle').textContent = title; $('#mBody').innerHTML = ''; $('#mBody').append(body); $('#mErr').textContent = '';
+  $('#mFoot').innerHTML = ''; $('#mFoot').append(...foot);
+  $('#modal').hidden = false;
+  const f = $('#mBody input:not([type=radio]):not([type=checkbox]), #mBody textarea') || $('#mFoot .btn'); f && f.focus();
+}
+function closeModal() {
+  $('#modal').hidden = true;
+  if (state.prefs.world === 1) $('#level').focus({ preventScroll: true }); else if (modalReturn && modalReturn.focus) modalReturn.focus();
+}
+const modalOpen = () => !$('#modal').hidden;
+function editItem(id) {
+  const orig = id ? state.profile.items.find(i => i.id === id) : null;
+  const it = orig ? { ...orig } : { id: uid(), type: 'project', org: '', role: '', start: '', end: '', bullets: [], tags: [] };
+  const pick = el('div', { class: 'type-pick', role: 'radiogroup', 'aria-label': '类型' },
+    Object.entries(TYPES).map(([k, T]) => el('label', {}, el('input', { type: 'radio', name: 'mtype', value: k, checked: it.type === k }), img(T.spr), T.label)));
+  const f = (lbl, input) => el('label', { class: 'fld' }, el('span', { text: lbl }), input);
+  const org = el('input', { id: 'm_org', value: it.org, placeholder: '公司 / 学校 / 项目名' });
+  const role = el('input', { id: 'm_role', value: it.role, placeholder: '职位 / 专业 / 担任角色' });
+  const st = el('input', { id: 'm_start', type: 'month', value: it.start, placeholder: '2023-09' });
+  const en = el('input', { id: 'm_end', type: 'month', value: it.end, placeholder: '2024-06', disabled: !it.end && !!orig });
+  const now = el('input', { type: 'checkbox', id: 'm_now', checked: !it.end && !!orig });
+  now.addEventListener('change', () => { en.disabled = now.checked; if (now.checked) en.value = ''; });
+  const bullets = el('textarea', { id: 'm_bullets', rows: '5', placeholder: '一行一条。动词开头，带上数字更好。\n例如：策划 2 场话题活动，累计参与 3,000+ 人次' });
+  bullets.value = it.bullets.join('\n');
+  const tags = el('input', { id: 'm_tags', value: it.tags.join('、'), placeholder: '用顿号或逗号分隔，例如：Figma、用户研究' });
+  const body = el('div', { class: 'form-stack' }, pick,
+    el('div', { class: 'grid2' }, f('机构', org), f('职位 / 角色', role)),
+    el('div', { class: 'grid2' }, f('开始', st), el('div', { class: 'fld' }, el('span', { text: '结束' }), en, el('label', { class: 'now-chk' }, now, '至今'))),
+    f('成就要点（藤蔓上的叶子）', bullets), f('技能标签（叶子旁的金币）', tags));
+  const save = el('button', { class: 'btn', text: orig ? '保存' : '放进地图', onclick: () => {
+    const v = {
+      type: ($('input[name=mtype]:checked') || {}).value || 'other', org: org.value.trim(), role: role.value.trim(),
+      start: normYM(st.value), end: now.checked ? '' : normYM(en.value),
+      bullets: bullets.value.split('\n').map(s => s.replace(/^[\s•·\-*\d.、)）]+/, '').trim()).filter(Boolean), tags: splitList(tags.value)
+    };
+    if (!v.org && !v.role) { $('#mErr').textContent = '至少填一下机构或职位。'; sfx('oops'); return; }
+    if (!v.start) { $('#mErr').textContent = '填一下开始时间，地图要按它排位置。格式像 2023-09。'; sfx('oops'); return; }
+    if (v.end && ymNum(v.end) < ymNum(v.start)) { $('#mErr').textContent = '结束时间早于开始时间了。'; sfx('oops'); return; }
+    // tweaking bullets on an example keeps it an example; renaming the org or role makes it the player's own
+    Object.assign(it, v, { sample: !!(orig && orig.sample && v.org === orig.org && v.role === orig.role) });
+    if (orig) Object.assign(orig, it); else state.profile.items.push(it);
+    closeModal(); touch(); renderLevel(); sfx('coin');
+    requestAnimationFrame(() => requestAnimationFrame(() => { const c = $(`#track .col[data-id="${it.id}"]`); if (c) { $('#level').scrollTo({ left: Math.max(0, c.offsetLeft - 120), behavior: RM.matches ? 'auto' : 'smooth' }); hero.x = c.offsetLeft; placeHero(); } }));
+  } });
+  const foot = [save, el('button', { class: 'btn btn-box', text: '取消', onclick: closeModal })];
+  if (orig) {
+    let armed = false, tmr = 0;
+    const del = el('button', { class: 'btn btn-red', text: '删除', onclick: () => {
+      if (!armed) { armed = true; del.textContent = '再点一次确认删除'; tmr = setTimeout(() => { armed = false; del.textContent = '删除'; }, 3000); return; }
+      clearTimeout(tmr);
+      state.profile.items = state.profile.items.filter(i => i.id !== orig.id);
+      closeModal(); touch(); renderLevel(); sfx('bump'); toast('已删除这段经历');
+    } });
+    foot.push(del);
+  }
+  openModal(orig ? '编辑经历' : '新增经历', body, foot);
+}
+function importDialog() {
+  if (!sampleFn) {
+    openModal('导入旧简历', el('div', {}, el('p', { text: '这个功能要请 Claude 帮你拆分旧简历，需要在 claude.ai 里打开本页才能用。' }),
+      el('p', { class: 'hint', text: '本地版可以用「读取存档」导入之前导出的 .json，或者在地图上手动添加经历。' })), [el('button', { class: 'btn', text: '知道了', onclick: closeModal })]);
+    return;
+  }
+  const ta = el('textarea', { id: 'm_import', rows: '12', placeholder: '把旧简历全文粘贴进来（从 Word / PDF 里复制文字即可）' });
+  const status = el('div', { class: 'ai-state' });
+  let ctl = null;
+  const go_ = el('button', { class: 'btn btn-green', text: '让 Claude 拆成经历', onclick: async () => {
+    const txt = ta.value.trim();
+    if (txt.length < 30) { $('#mErr').textContent = '内容太短了，粘贴完整一点的简历文本。'; return; }
+    ctl = new AbortController(); go_.disabled = true; status.className = 'ai-state run'; status.innerHTML = ''; status.append(img('hero1'), el('span', { text: '正在拆分，通常 20–40 秒…' }));
+    try {
+      const o = await sampleFn.json(`把下面这份旧简历整理成结构化 JSON。只提取原文里有的信息，不要编造或补充。时间统一写成 YYYY-MM，"至今"写空字符串。
+只回复 JSON：{"basics":{"name":"","title":"求职意向","phone":"","email":"","city":"","link":"","summary":"个人简介"},"skills":[{"name":"技能","level":1到3}],"items":[{"type":"edu|work|intern|project|award|other","org":"机构","role":"职位或专业","start":"YYYY-MM","end":"YYYY-MM 或空","bullets":["要点"],"tags":["技能标签"]}]}
+
+旧简历：
+${txt.slice(0, 20000)}`, { signal: ctl.signal, cache: false });
+      const n = mergeImport(o);
+      closeModal(); renderAll(); sfx('clear'); toast(`导入了 ${n} 段经历，已经插到地图上`);
+    } catch (e) {
+      go_.disabled = false; status.className = 'ai-state'; status.textContent = '';
+      $('#mErr').textContent = e && e.code === 'cancelled' ? '' : e && e.code === 'invalid_json' ? 'Claude 返回的格式不对，再试一次。' : e && e.code === 'rate_limited' ? '调用太频繁了，过一会儿再试。' : '没能导入，稍后再试。';
+    }
+  } });
+  openModal('导入旧简历', el('div', { class: 'form-stack' }, el('label', { class: 'fld' }, el('span', { text: '旧简历文本' }), ta), status,
+    el('p', { class: 'hint', text: '导入的经历会追加到地图上，不会覆盖现有内容；角色卡只补空着的格子。' })),
+    [go_, el('button', { class: 'btn btn-box', text: '取消', onclick: () => { ctl && ctl.abort(); closeModal(); } })]);
+}
+function mergeImport(o) {
+  if (!o || typeof o !== 'object') throw { code: 'invalid_json' };
+  const p = state.profile;
+  // importing a real resume replaces the untouched example data
+  clearSampleData();
+  const b = o.basics || {};
+  BASIC_KEYS.forEach(k => { if (!p.basics[k] && typeof b[k] === 'string') p.basics[k] = b[k].trim(); });
+  for (const s of Array.isArray(o.skills) ? o.skills : []) {
+    const name = typeof s === 'string' ? s : s && s.name; if (!name) continue;
+    if (!p.skills.some(x => x.name.toLowerCase() === String(name).toLowerCase())) p.skills.push({ name: String(name).trim(), level: Math.min(3, Math.max(1, +(s.level) || 2)) });
+  }
+  let n = 0;
+  for (const it of Array.isArray(o.items) ? o.items : []) {
+    if (!it || (!it.org && !it.role)) continue;
+    p.items.push({ id: uid(), type: TYPES[it.type] ? it.type : 'other', org: String(it.org || ''), role: String(it.role || ''), start: normYM(it.start), end: it.end ? normYM(it.end) : '',
+      bullets: strArr(it.bullets), tags: strArr(it.tags), sample: false });
+    n++;
+  }
+  touch();
+  return n;
+}
+function howto() {
+  const row = (spr, t, d) => el('li', {}, img(spr), el('div', {}, el('b', { text: t }), d));
+  openModal('怎么玩', el('ol', { class: 'howto' },
+    row('qblock', '1-1 经历地图', '把教育、实习、工作、项目、奖项一段段放进地图。每段的要点是藤蔓上的叶子，技能是金币。录一次，以后每个岗位都能用。'),
+    row('pipe', '1-2 JD 管道', '粘贴招聘信息，丢进管道。金币是你已经有的关键词，空块是 JD 要但你档案里没有的。'),
+    row('star', '1-3 专属简历', '一键生成只属于这个岗位的简历：挑相关经历、重排要点、加粗关键词。纸上可直接改，再复制或下载带走。'),
+    row('coin', '存档', '自动保存在浏览器里。换电脑前点「导出存档」，拿到 .json 文件，在新电脑上「读取存档」。')),
+    [el('button', { class: 'btn', text: '开始', onclick: closeModal })]);
+}
+
+/* ---------- world 2 ---------- */
+function renderJD() {
+  const j = state.jd;
+  ['company', 'position'].forEach(k => { const i = $('#jd' + k[0].toUpperCase() + k.slice(1)); if (document.activeElement !== i) i.value = j[k] || ''; });
+  if (document.activeElement !== $('#jdText')) $('#jdText').value = j.text || '';
+  $('#jdSampleTag').hidden = !j.sample;
+}
+function renderAnalysis() {
+  const a = state.analysis;
+  const kw = $('#kwList'), rq = $('#reqList'); kw.innerHTML = ''; rq.innerHTML = '';
+  if (!a || !a.kws.length) {
+    $('#anSum').textContent = (state.jd.text || '').trim() ? '没提取到关键词。JD 太短，或者都是很泛的描述。' : '卷轴是空的。先把 JD 贴进去，再丢进管道。';
+    rq.append(el('li', {}, el('p', { class: 'empty-note', text: '这里会逐条列出 JD 的任职要求，并标出你哪段经历对得上。' })));
+    return;
+  }
+  const hits = a.kws.filter(k => k.hit).length, miss = a.kws.length - hits;
+  $('#anSum').textContent = `掉出 ${hits} 枚金币，还缺 ${miss} 个道具 · 初步匹配度 ${a.score}%`;
+  a.kws.forEach(k => kw.append(el('span', { class: 'kw ' + (k.hit ? 'hit' : 'miss'), title: k.lines[0] || '' }, img(k.hit ? 'coin' : 'qused'), k.c, k.bonus ? el('small', { text: '优先' }) : null)));
+  if (!a.reqs.length) rq.append(el('li', {}, el('p', { class: 'empty-note', text: '没找到「任职要求」段落。JD 里如果有「要求 / 任职资格」小标题，对照表会更准。' })));
+  const icon = { hit: 'coin', part: 'star', miss: 'qused', unknown: 'coinOff' };
+  const label = { hit: '对得上', part: '部分对得上', miss: '还缺', unknown: '请自己判断' };
+  a.reqs.forEach(r => {
+    const src = r.status === 'miss' ? `缺：${r.missKws.join('、')}` : r.src.length ? `来自：${r.src.join(' / ')}${r.fromSkills ? ' / 道具栏' : ''}` : r.fromSkills ? '来自：道具栏' : r.status === 'unknown' ? '这条没有明确关键词' : '档案里有相近描述';
+    rq.append(el('li', { class: 'req' }, el('img', { class: 'px', src: URLS[icon[r.status]], alt: label[r.status], title: label[r.status] }), el('p', { text: r.text }),
+      el('div', { class: 'src', html: `<b>${label[r.status]}</b> · ${esc(src)}` })));
+  });
+}
+function runAnalyze(withFx) {
+  const t = state.jd.text.trim();
+  if (!t) { toast('卷轴是空的，先贴一份 JD'); sfx('oops'); return; }
+  const d = detectTitle(t);
+  if (!state.jd.company && d.company) state.jd.company = d.company;
+  if (!state.jd.position && d.position) state.jd.position = d.position;
+  touch();
+  state.analysis = analyze();
+  renderJD(); renderAnalysis(); renderHUD();
+  if (withFx && !RM.matches) {
+    const p = $('#dropPaper'); p.classList.remove('go'); void p.offsetWidth; p.classList.add('go'); sfx('pipe');
+    const burst = $('#burst'); burst.innerHTML = '';
+    state.analysis.kws.filter(k => k.hit).slice(0, 10).forEach((k, i) => {
+      const c = img('coin'); c.style.setProperty('--dx', ((i % 5) - 2) * 34 + 'px'); c.style.setProperty('--dy', -(70 + (i % 3) * 30) + 'px'); c.style.animationDelay = (0.55 + i * 0.07) + 's';
+      burst.append(c); setTimeout(() => sfx('coin'), 550 + i * 70);
+    });
+    setTimeout(() => { burst.innerHTML = ''; }, 2200);
+  }
+}
+
+/* ---------- world 3 ---------- */
+function renderOut() {
+  const o = state.out;
+  const paper = $('#paper');
+  paper.className = 'paper tpl-' + state.prefs.tpl;
+  paper.style.setProperty('--acc', state.prefs.tpl === 'color' ? ACCENTS[state.prefs.accent] : '#1f2328');
+  $$('.seg [data-tpl]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tpl === state.prefs.tpl)));
+  $$('[data-acc]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.acc === state.prefs.accent)));
+  if (!o) {
+    paper.innerHTML = state.profile.items.length
+      ? '<header><h1>还没有简历</h1><div class="p-title">点右边「生成简历」</div></header>'
+      : '<header><h1>档案还是空的</h1><div class="p-title">先去 1-1 经历地图添加经历，或者用「导入旧简历」</div></header><p>简历只会用你录入的真实经历来写，所以要先有经历，这里才能生成。</p>';
+    $('#scoreNum').textContent = '--%'; $('#stars').innerHTML = ''; [1, 2, 3].forEach(() => $('#stars').append(img('starOff')));
+    $('#hitList').innerHTML = ''; $('#missList').innerHTML = ''; $('#tipList').innerHTML = '';
+    $('#paperNote').textContent = ''; renderStale(); renderHUD(); return;
+  }
+  if (document.activeElement !== paper) paper.innerHTML = o.html;
+  $('#scoreNum').textContent = o.score == null ? '--%' : o.score + '%';
+  const st = $('#stars'); st.innerHTML = '';
+  const n = o.score == null ? 0 : o.score >= 80 ? 3 : o.score >= 60 ? 2 : o.score >= 40 ? 1 : 0;
+  [1, 2, 3].forEach(i => st.append(img(i <= n ? 'star' : 'starOff', 'px', '')));
+  st.setAttribute('aria-label', `${n} 星`);
+  $('#clrFor').textContent = [o.company, o.position].filter(Boolean).join(' · ');
+  const fill = (box, arr, hit) => { box.innerHTML = ''; if (!arr.length) { box.append(el('p', { class: 'empty-note', text: hit ? '还没有命中的关键词。' : '没有缺的，漂亮。' })); return; } arr.forEach(t => box.append(el('span', { class: 'kw ' + (hit ? 'hit' : 'miss') }, img(hit ? 'coin' : 'qused'), t))); };
+  fill($('#hitList'), o.matched, true); fill($('#missList'), o.missing, false);
+  const tl = $('#tipList'); tl.innerHTML = ''; o.tips.forEach(t => tl.append(el('li', { text: t })));
+  $('#paperNote').textContent = (o.source === 'ai' ? 'Claude 精修版' : '本地生成版') + ' · ' + new Date(o.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' · 纸上的修改会自动保存';
+  renderStale(); renderHUD();
+}
+function renderStale() { $('#staleNote').hidden = !(state.out && state.stale); $('#genLocal').textContent = state.out ? '重新生成（即时）' : '生成简历（即时）'; }
+function celebrate(score) {
+  if (RM.matches) { toast(score == null ? '简历生成好了' : `简历生成好了 · 匹配度 ${score}%`); return; }
+  const b = $('#banner'); $('#bannerSub').textContent = score == null ? '简历生成好了' : `匹配度 ${score}%`;
+  b.hidden = true; void b.offsetWidth; b.hidden = false;
+  clearTimeout(celebrate.t); celebrate.t = setTimeout(() => { b.hidden = true; }, 1950);
+}
+
+/* ---------- export ---------- */
+const RESUME_CSS = `.paper{--acc:#1f2328;background:#fff;color:#1f2328;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;font-size:13.5px;line-height:1.65;padding:44px 48px;max-width:794px;margin:0 auto;box-sizing:border-box;outline:none;text-align:left}
+.paper header{border-bottom:2px solid var(--acc);padding-bottom:12px;margin-bottom:6px}
+.paper h1{font-size:28px;margin:0;letter-spacing:.04em;font-weight:700;color:#14171c;line-height:1.3}
+.paper .p-title{font-size:15px;margin-top:4px;color:var(--acc);font-weight:500}
+.paper .p-contact{font-size:12.5px;color:#5b6470;margin-top:6px;display:flex;flex-wrap:wrap;gap:2px 16px}
+.paper section{margin-top:14px}
+.paper h2{font-size:15px;margin:0 0 8px;padding-bottom:4px;border-bottom:1px solid #d9dde3;color:var(--acc);letter-spacing:.08em;font-weight:700}
+.paper .p-item{margin-bottom:10px;break-inside:avoid}
+.paper .p-row{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline}
+.paper .p-row strong{font-size:14px;color:#14171c}
+.paper .p-sub{color:#333a44}
+.paper time{margin-left:auto;color:#5b6470;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.paper ul{margin:4px 0 0;padding-left:1.2em}
+.paper li{margin:2px 0}
+.paper b{font-weight:700;color:#14171c}
+.paper p{margin:0}
+.paper.tpl-color header{border-bottom:0;background:var(--acc);color:#fff;margin:-44px -48px 10px;padding:32px 48px 18px}
+.paper.tpl-color h1,.paper.tpl-color .p-title{color:#fff}
+.paper.tpl-color .p-contact{color:#ffffffd9}
+.paper.tpl-color h2{border-bottom:2px solid var(--acc)}
+.paper.tpl-color h2::before{content:"";display:inline-block;width:8px;height:8px;background:var(--acc);margin-right:8px;vertical-align:2px}
+@media (max-width:600px){.paper{padding:24px 18px;font-size:13px}.paper.tpl-color header{margin:-24px -18px 10px;padding:22px 18px 14px}.paper time{margin-left:0}}
+@media print{.paper{padding:0;max-width:none}.paper.tpl-color header{margin:0 0 10px;padding:18px 20px;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:14mm}}`;
+function inlineMd(node) {
+  let s = '';
+  node.childNodes.forEach(n => {
+    if (n.nodeType === 3) s += n.textContent;
+    else if (n.nodeType === 1) { const t = n.tagName; const inner = inlineMd(n); s += (t === 'B' || t === 'STRONG') && inner.trim() ? `**${inner.trim()}**` : t === 'BR' ? ' ' : inner; }
+  });
+  return s.replace(/\s+/g, ' ');
+}
+function paperMd() {
+  const p = $('#paper'), out = [];
+  const walk = node => {
+    for (const n of node.children) {
+      const t = n.tagName;
+      if (t === 'H1') out.push('# ' + n.textContent.trim(), '');
+      else if (t === 'H2') out.push('', '## ' + n.textContent.trim(), '');
+      else if (n.classList.contains('p-contact')) out.push([...n.children].map(c => c.textContent.trim()).filter(Boolean).join(' | ') || n.textContent.trim(), '');
+      else if (n.classList.contains('p-title')) out.push(n.textContent.trim(), '');
+      else if (n.classList.contains('p-row')) out.push('### ' + [...n.children].map(c => c.textContent.trim()).filter(Boolean).join(' · '));
+      else if (t === 'UL' || t === 'OL') { [...n.children].forEach(li => out.push('- ' + inlineMd(li).trim())); out.push(''); }
+      else if (t === 'P') out.push(inlineMd(n).trim(), '');
+      else if (n.children.length) walk(n);
+      else if (n.textContent.trim()) out.push(inlineMd(n).trim(), '');
+    }
+  };
+  walk(p);
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
+function fileBase() { return ['简历', state.profile.basics.name, state.jd.company, state.jd.position].filter(Boolean).join('-').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 80); }
+function paperHtmlDoc() {
+  const p = $('#paper').cloneNode(true); p.removeAttribute('contenteditable'); p.removeAttribute('id'); p.removeAttribute('aria-label'); p.removeAttribute('spellcheck');
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(fileBase())}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"><style>body{margin:0;background:#f2f2f5;padding:24px 12px}@media print{body{background:#fff;padding:0}}${RESUME_CSS}</style></head><body>${p.outerHTML}</body></html>`;
+}
+async function saveFile(name, data, mime) {
+  await Promise.race([capReady, new Promise(r => setTimeout(r, 3000))]);
+  if (dlCap) {
+    try { await dlCap.save({ filename: name, data }); toast('已保存 ' + name); }
+    catch (e) { if (e && e.code !== 'declined') toast(e.code === 'rejected_extension' ? '这个格式这里不支持下载。' : '这里暂时不能下载，可以先复制文本。'); }
+    return;
+  }
+  if (IN_VIEWER) { toast('这里暂时不能下载，可以先复制文本。'); return; }
+  const url = URL.createObjectURL(new Blob([data], { type: mime }));
+  const a = el('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast('已下载 ' + name);
+}
+async function copyText() {
+  const txt = $('#paper').innerText.replace(/\n{3,}/g, '\n\n').trim();
+  try { await navigator.clipboard.writeText(txt); toast('已复制，可以直接粘贴到招聘网站的在线简历里'); sfx('coin'); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($('#paper')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('浏览器不让直接复制，已经帮你全选，按 Ctrl+C 即可'); }
+}
+
+/* ---------- navigation ---------- */
+const WORLDS = { 1: '经历地图', 2: 'JD 管道', 3: '专属简历' };
+function showWorld(w) {
+  state.prefs.world = w;
+  $$('.stage').forEach(s => { s.hidden = s.id !== 'w' + w; });
+  $$('.wm-node').forEach(n => n.toggleAttribute('aria-current', false));
+  const cur = $(`.wm-node[data-w="${w}"]`); cur.setAttribute('aria-current', 'step');
+  if (w === 2) { renderJD(); if (!state.analysis && state.jd.text.trim()) state.analysis = analyze(); renderAnalysis(); }
+  if (w === 3) { if (!state.out) generateLocal(true); else renderOut(); }
+  if (w === 1 && $('#title').hidden) setTimeout(() => $('#level').focus({ preventScroll: true }), 0);
+  renderHUD(); saveLocal();
+}
+function go(w) {
+  if (w === state.prefs.world) { window.scrollTo({ top: 0 }); return; }
+  window.scrollTo({ top: 0 });
+  if (RM.matches) { showWorld(w); return; }
+  sfx('pipe');
+  $('#interW').textContent = 'WORLD 1-' + w; $('#interN').textContent = WORLDS[w]; $('#interC').textContent = pad2(state.profile.items.reduce((s, i) => s + i.bullets.length, 0));
+  $('#inter').hidden = false;
+  setTimeout(() => showWorld(w), 250);
+  setTimeout(() => { $('#inter').hidden = true; }, 800);
+}
+
+/* ---------- toast ---------- */
+let toastT = 0;
+function toast(t) { const n = $('#toast'); n.textContent = t; n.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => n.classList.remove('on'), 3200); }
+
+/* ---------- title ---------- */
+function showTitle(show) { $('#title').hidden = !show; if (show) { const b = $('#titleMenu .sel') || $('#titleMenu button'); b && b.focus(); } }
+function titleAct(act) {
+  sfx('select');
+  if (act === 'start') { showTitle(false); try { sessionStorage.setItem('rq.title', '1'); } catch (e) {} if (!RM.matches) { $('#interW').textContent = 'WORLD 1-' + state.prefs.world; $('#interN').textContent = WORLDS[state.prefs.world]; $('#inter').hidden = false; setTimeout(() => { $('#inter').hidden = true; }, 700); } showWorld(state.prefs.world); }
+  else if (act === 'howto') { titleAct('start'); howto(); }
+  else if (act === 'load') { titleAct('start'); $('#loadSave').click(); }
+}
+
+function renderAll() { if (!state.analysis && (state.jd.text || '').trim()) state.analysis = analyze(); renderHUD(); renderLevel(); renderBasics(); renderInventory(); renderJD(); renderAnalysis(); renderOut(); }
+
+/* =========================================================
+   Wiring
+   ========================================================= */
+function wire() {
+  $$('.wm-node').forEach(b => b.addEventListener('click', () => go(+b.dataset.w)));
+  $$('[data-go]').forEach(b => b.addEventListener('click', () => go(+b.dataset.go)));
+  $('#sndBtn').addEventListener('click', () => { state.prefs.sound = !state.prefs.sound; saveLocal(); renderHUD(); sfx('select'); });
+  $('#titleBtn').addEventListener('click', () => showTitle(true));
+  $$('#titleMenu button').forEach(b => {
+    b.addEventListener('click', () => titleAct(b.dataset.act));
+    b.addEventListener('focus', () => { $$('#titleMenu button').forEach(x => x.classList.toggle('sel', x === b)); });
+  });
+  $('#title').addEventListener('keydown', e => {
+    const bs = $$('#titleMenu button'), i = bs.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = bs[(Math.max(0, i) + (e.key === 'ArrowDown' ? 1 : bs.length - 1)) % bs.length]; n.focus(); sfx('select'); }
+  });
+  $('#addBtn').addEventListener('click', () => editItem(null));
+  $('#importBtn').addEventListener('click', importDialog);
+  $('#exportSave').addEventListener('click', () => saveFile('简历大冒险-存档-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(persisted(), null, 2), 'application/json'));
+  $('#loadSaveLbl').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#loadSave').click(); } });
+  $('#loadSave').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { try { const d = JSON.parse(r.result); if (!applySaved(d)) throw 0; touch({ content: false }); renderAll(); showWorld(state.prefs.world); toast('存档读取成功'); sfx('coin'); } catch (err) { toast('这个文件不是简历大冒险的存档。'); sfx('oops'); } };
+    r.readAsText(f); e.target.value = '';
+  });
+  let clearArmed = false, clearT = 0;
+  $('#clearSample').addEventListener('click', e => {
+    const b = e.currentTarget;
+    if (!clearArmed) { clearArmed = true; b.textContent = '确定清空？再点一次'; clearT = setTimeout(() => { clearArmed = false; b.textContent = '清空示例，开始我的冒险'; }, 3000); return; }
+    clearTimeout(clearT); clearArmed = false; b.textContent = '清空示例，开始我的冒险';
+    clearSampleData();
+    if (state.jd.sample) state.jd = { text: '', company: '', position: '', sample: false, manual: {} };
+    state.out = null; state.analysis = null; hero.x = 40;
+    touch({ content: false }); renderAll(); sfx('pipe'); toast('示例清空了。先在角色卡写名字，再点「+ 新增经历」。');
+    $('#b_name').focus();
+  });
+  BASIC_KEYS.forEach(k => $('#b_' + k).addEventListener('input', e => { state.profile.basics[k] = e.target.value; if (k === 'name') renderHUD(); renderSampleBar(); touchSoon(); }));
+  $('#skillForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const names = splitList($('#skillInput').value); if (!names.length) return;
+    let added = 0;
+    names.forEach(n => { if (!state.profile.skills.some(s => s.name.toLowerCase() === n.toLowerCase())) { state.profile.skills.push({ name: n, level: 2 }); added++; } });
+    $('#skillInput').value = ''; if (added) { sfx('coin'); touch(); renderInventory(); } else toast('背包里已经有了');
+  });
+  // JD
+  // company / position follow the JD's first line until the player types into them
+  ['company', 'position'].forEach(k => $('#jd' + k[0].toUpperCase() + k.slice(1)).addEventListener('input', e => {
+    state.jd[k] = e.target.value.trim(); state.jd.manual = { ...(state.jd.manual || {}), [k]: !!state.jd[k] };
+    state.jd.sample = false; $('#jdSampleTag').hidden = true; touchSoon();
+  }));
+  $('#jdText').addEventListener('input', e => {
+    state.jd.text = e.target.value; state.jd.sample = false; $('#jdSampleTag').hidden = true; state.analysis = null;
+    const d = detectTitle(state.jd.text), man = state.jd.manual || {};
+    ['company', 'position'].forEach(k => { if (!man[k]) state.jd[k] = d[k] || ''; });
+    renderJD(); touchSoon();
+  });
+  $('#analyzeBtn').addEventListener('click', () => runAnalyze(true));
+  $('#jdClear').addEventListener('click', () => { state.jd = { text: '', company: '', position: '', sample: false, manual: {} }; state.analysis = null; touch(); renderJD(); renderAnalysis(); $('#jdText').focus(); });
+  // world 3
+  $('#genLocal').addEventListener('click', () => generateLocal(false));
+  $('#genAI').addEventListener('click', genAI);
+  $('#aiStop').addEventListener('click', () => aiCtl && aiCtl.abort());
+  $$('.seg [data-tpl]').forEach(b => b.addEventListener('click', () => { state.prefs.tpl = b.dataset.tpl; sfx('select'); saveLocal(); renderOut(); }));
+  $$('[data-acc]').forEach(b => b.addEventListener('click', () => { state.prefs.accent = b.dataset.acc; if (state.prefs.tpl !== 'color') state.prefs.tpl = 'color'; sfx('select'); saveLocal(); renderOut(); }));
+  let paperT = 0;
+  $('#paper').addEventListener('input', () => { clearTimeout(paperT); paperT = setTimeout(() => { if (state.out) { state.out.html = $('#paper').innerHTML; touch({ content: false }); } }, 600); });
+  $('#paper').addEventListener('blur', () => { if (state.out && state.out.html !== $('#paper').innerHTML) { state.out.html = $('#paper').innerHTML; touch({ content: false }); } });
+  // pasting from Word / web pages would drag their fonts and colors onto the paper: keep it plain text
+  $('#paper').addEventListener('paste', e => {
+    const t = e.clipboardData && e.clipboardData.getData('text/plain');
+    if (t == null) return;
+    e.preventDefault(); document.execCommand('insertText', false, t);
+  });
+  $('#copyTxt').addEventListener('click', copyText);
+  $('#dlMd').addEventListener('click', () => saveFile(fileBase() + '.md', paperMd(), 'text/markdown'));
+  $('#dlHtml').addEventListener('click', () => saveFile(fileBase() + '.html', paperHtmlDoc(), 'text/html'));
+  if (IN_VIEWER) { $('#printBtn').hidden = true; $('#exportHint').textContent = '想要 PDF：下载 HTML，用浏览器打开后按 Ctrl+P，选「另存为 PDF」。'; }
+  else { $('#printBtn').addEventListener('click', () => window.print()); $('#exportHint').textContent = '打印时只会打印简历纸面，选「另存为 PDF」即可得到 PDF。'; }
+  // modal
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  // touch gamepad: hold ◀ ▶ to walk, A to jump and bump the nearest block
+  $$('#pad [data-dir]').forEach(b => {
+    const d = +b.dataset.dir;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (err) {} hero.target = null; hero.dir = d; kick(); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { if (hero.dir === d) hero.dir = 0; }));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  });
+  $('#padA').addEventListener('click', () => { const col = nearestCol(); jump(col ? () => { bumpFx(col); setTimeout(() => colAction(col), 260); } : () => sfx('bump')); });
+  $('#title').addEventListener('click', e => { if (!e.target.closest('button')) titleAct('start'); });
+  if (TOUCH) $('.title-foot').textContent = 'TAP TO START';
+  if (TOUCH) $('.stage-tip').textContent = '时间从左往右走。点方块或路牌编辑；也可以用下面的手柄走路，按 A 顶方块。';
+  // keyboard
+  const typing = t => t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modalOpen()) { closeModal(); return; }
+    if (!$('#title').hidden) { if (e.key === 'Enter' && !e.target.closest('#titleMenu')) titleAct('start'); return; }
+    if (state.prefs.world !== 1 || modalOpen() || typing(e.target)) return;
+    const t = e.target; if (!(t === document.body || t === document.documentElement || t.id === 'level')) return;
+    if (e.key === 'ArrowLeft' || e.key === 'a') { hero.dir = -1; hero.target = null; kick(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'd') { hero.dir = 1; hero.target = null; kick(); e.preventDefault(); }
+    else if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { e.preventDefault(); if (e.repeat) return; const col = nearestCol(); jump(col ? () => { bumpFx(col); setTimeout(() => colAction(col), 260); } : () => sfx('bump')); }
+  });
+  addEventListener('keyup', e => { if ((e.key === 'ArrowLeft' || e.key === 'a') && hero.dir === -1) hero.dir = 0; if ((e.key === 'ArrowRight' || e.key === 'd') && hero.dir === 1) hero.dir = 0; });
+  addEventListener('blur', () => { hero.dir = 0; });
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  buildSprites();
+  document.head.append(el('style', { text: RESUME_CSS }));
+  try { const raw = localStorage.getItem(LS); if (raw) applySaved(JSON.parse(raw)); } catch (e) { /* fresh start */ }
+  // title screen scenery
+  const td = $('#titleDeco');
+  [[6, 12], [38, 22], [70, 8]].forEach(([l, t]) => { const c = img('cloud', 'deco cloud'); c.style.left = l + '%'; c.style.top = t + '%'; c.style.width = '180px'; c.style.height = '90px'; td.append(c); });
+  const h1 = img('hill', 'deco hill'); h1.style.left = '52%'; h1.style.bottom = '96px'; h1.style.width = '288px'; h1.style.height = '144px'; td.append(h1);
+  const b1 = img('bush', 'deco bush'); b1.style.left = '8%'; b1.style.bottom = '96px'; td.append(b1);
+  wire();
+  let seen = false; try { seen = sessionStorage.getItem('rq.title') === '1'; } catch (e) {}
+  $('#title').hidden = seen;
+  renderAll();
+  if (!state.out) generateLocal(true);
+  showWorld(state.prefs.world || 1);
+  showTitle(!seen);
+  updateAI();
+}
+boot();
+})();
+</script>
+<!--/BODY-->
+</body>
+</html>
