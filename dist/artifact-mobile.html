@@ -53,6 +53,8 @@ button{cursor:pointer}
 @keyframes pop{50%{transform:translateY(-4px)}}
 .hud-side{margin-left:auto;display:flex;align-items:center;gap:14px}
 .save-badge{font-family:var(--f-hud);font-size:8px;color:var(--gold-hi);opacity:.85}
+.save-badge.flash{animation:saveFlash .9s steps(2) 1}
+@keyframes saveFlash{0%,100%{color:var(--gold-hi)}50%{color:#fff}}
 .hud-btn{background:none;border:0;padding:4px 0;font-family:var(--f-hud);font-size:10px;color:var(--hud);text-shadow:2px 2px 0 var(--ink)}
 .hud-btn:hover{color:var(--gold)}
 
@@ -343,7 +345,7 @@ html.m .wm-tile{width:36px;height:28px;font-size:8px}
 html.m .wm-name{font-size:12px;text-shadow:none}
 html.m .wm-node[aria-current="step"] .wm-name{color:var(--gold)}
 html.m .hud{display:flex;flex-wrap:nowrap;align-items:flex-end;gap:16px}
-html.m .hud-cell:nth-child(3),html.m .hud-cell:nth-child(4),html.m .save-badge{display:none}
+html.m .hud-cell:nth-child(3),html.m .hud-cell:nth-child(4){display:none}
 html.m .hud-v.cn{font-size:12px;max-width:6.5em}
 html.m .hud-side{margin-left:auto;width:auto;gap:10px;flex-direction:column;align-items:flex-end}
 html.m .hud-btn{font-size:8px}
@@ -564,7 +566,7 @@ html.m .title-foot{bottom:calc(30px + env(safe-area-inset-bottom,0px))}
     <div class="logo-en">RESUME QUEST</div>
     <p class="title-sub">贴一份招聘 JD，生成这个岗位的专属简历。</p>
     <ul class="title-menu" id="titleMenu">
-      <li><button data-act="start" class="sel">开始冒险</button></li>
+      <li><button data-act="start" class="sel" id="startBtn">开始冒险</button></li>
       <li><button data-act="howto">怎么玩</button></li>
       <li><button data-act="load">读取存档</button></li>
     </ul>
@@ -805,7 +807,20 @@ function applySaved(d) {
   state.analysis = null;
   return true;
 }
-function saveLocal() { try { localStorage.setItem(LS, JSON.stringify(persisted())); } catch (e) { /* storage blocked */ } }
+let saveKind = 'SAVED', saveOk = true;
+function saveLocal() {
+  try { localStorage.setItem(LS, JSON.stringify(persisted())); saveOk = true; }
+  catch (e) { if (saveOk) toast('浏览器不让存档（可能是无痕模式），记得点「导出存档」。'); saveOk = false; }
+  stampBadge();
+}
+function stampBadge() {
+  const b = $('#saveBadge'); if (!b) return;
+  if (!saveOk) { b.textContent = 'NO SAVE'; return; }
+  if (!state.updatedAt) { b.textContent = 'NEW GAME'; return; }
+  const d = new Date(state.updatedAt || Date.now());
+  b.textContent = saveKind + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash');
+}
 let cloud = null, cloudBusy = false, cloudAgain = false, cloudTimer = 0;
 async function flushCloud() {
   if (!cloud) return;
@@ -825,8 +840,12 @@ function touch(opts = {}) {
   if (state.prefs.world === 3) renderStale();
 }
 let touchTimer = 0;
-const touchSoon = (opts) => { clearTimeout(touchTimer); touchTimer = setTimeout(() => touch(opts), 400); };
-function setBadge(t) { $('#saveBadge').textContent = t; }
+let touchOpts = null;
+const touchSoon = (opts) => { touchOpts = opts || {}; clearTimeout(touchTimer); touchTimer = setTimeout(() => { touchOpts = null; touch(opts); }, 400); };
+function flushNow() { if (touchOpts) { clearTimeout(touchTimer); const o = touchOpts; touchOpts = null; touch(o); } else saveLocal(); flushCloud(); }
+addEventListener('pagehide', flushNow);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); });
+function setBadge(t) { saveKind = t === 'CLOUD SAVE' ? 'CLOUD' : 'SAVED'; stampBadge(); }
 
 /* ---------- capabilities (only inside a Claude viewer) ---------- */
 let sampleFn = null, dlCap = null;
@@ -1813,8 +1832,11 @@ function boot() {
   $('#title').hidden = seen;
   renderAll();
   if (!state.out) generateLocal(true);
+  if (state.updatedAt) $('#startBtn').textContent = '继续冒险';
   showWorld(state.prefs.world || 1);
   showTitle(!seen);
+  stampBadge();
+  if (!IN_VIEWER && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   updateAI();
 }
 boot();
